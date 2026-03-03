@@ -1,0 +1,44 @@
+name: claude_remote_android
+description: "Mobile app for remote Claude Code terminal access"
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.0
+  web_socket_channel: ^2.4.0
+  shared_preferences: ^2.2.0
+  xterm: ^4.0.0
+  uuid: ^4.0.0
+  crypto: ^3.0.3
+  google_sign_in: ^6.2.0
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/claude-remote-icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/claude-remote-icon.png"
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700
