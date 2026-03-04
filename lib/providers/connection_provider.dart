@@ -14,6 +14,7 @@ class ConnectionProvider extends ChangeNotifier {
   bool _isReconnecting = false;
 
   ConnectionProvider(this._ws, this._authService) {
+    _isConnected = _ws.isConnected;
     _subscription = _ws.connectionState.listen((connected) {
       _isConnected = connected;
       notifyListeners();
