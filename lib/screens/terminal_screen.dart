@@ -23,6 +23,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   int _seqNum = 0;
   String? _sessionId;
   Timer? _resizeDebounce;
+  bool _optionActive = false;
 
   static const _draculaTheme = TerminalTheme(
     cursor: Color(0xFFF8F8F2),
@@ -65,9 +66,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   void _onTerminalOutput(String data) {
     if (_sessionId == null) return;
+    final input = (_optionActive && data == '\x7f') ? '\x1b\x7f' : data;
     final msg = TerminalInput(
       sessionId: _sessionId!,
-      input: data,
+      input: input,
       sequenceNumber: _seqNum++,
       timestamp: DateTime.now().toIso8601String(),
       id: 'input-${DateTime.now().millisecondsSinceEpoch}',
@@ -264,33 +266,34 @@ class _TerminalScreenState extends State<TerminalScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildKey('ESC', () => _onVirtualKey(() => _sendRawInput('\x1b'))),
-            _buildKey('Shift+Tab', () => _onVirtualKey(() => _sendRawInput('\x1b[Z'))),
+            _buildKey('Mode', () => _onVirtualKey(() => _sendRawInput('\x1b[Z'))),
             _buildKey('/', () => _onVirtualKey(() => _sendRawInput('/'))),
-            _buildKey('/rename', () => _onVirtualKey(() => _sendRawInput('/rename'))),
+            _buildKey('/rename', () => _onVirtualKey(() => _sendRawInput('/rename '))),
             _buildKey('\u2191', () => _onVirtualKey(() => _sendRawInput('\x1b[A'))),
             _buildKey('\u2193', () => _onVirtualKey(() => _sendRawInput('\x1b[B'))),
-            _buildKey('\u2190', () => _onVirtualKey(() => _sendRawInput('\x1b[D'))),
-            _buildKey('\u2192', () => _onVirtualKey(() => _sendRawInput('\x1b[C'))),
+            _buildKey('Opt', () => setState(() => _optionActive = !_optionActive), active: _optionActive),
+            _buildKey('\u2190', () => _onVirtualKey(() => _sendRawInput(_optionActive ? '\x1bb' : '\x1b[D'))),
+            _buildKey('\u2192', () => _onVirtualKey(() => _sendRawInput(_optionActive ? '\x1bf' : '\x1b[C'))),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildKey(String label, VoidCallback onTap) {
+  Widget _buildKey(String label, VoidCallback onTap, {bool active = false}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(4),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFF44475A),
+          color: active ? const Color(0xFFBD93F9) : const Color(0xFF44475A),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFFF8F8F2),
+          style: TextStyle(
+            color: active ? const Color(0xFF282A36) : const Color(0xFFF8F8F2),
             fontSize: 12,
             fontFamily: 'JetBrainsMono',
           ),
