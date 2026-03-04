@@ -15,6 +15,8 @@ class SessionListScreen extends StatefulWidget {
 }
 
 class _SessionListScreenState extends State<SessionListScreen> {
+  bool _isCreating = false;
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +26,7 @@ class _SessionListScreenState extends State<SessionListScreen> {
   }
 
   void _createSession() {
+    _isCreating = true;
     final settings = context.read<SettingsProvider>();
     context.read<SessionProvider>().createSession(
       settings.defaultWorkingDirectory,
@@ -125,6 +128,13 @@ class _SessionListScreenState extends State<SessionListScreen> {
     final sessionProvider = context.watch<SessionProvider>();
     final connectionProvider = context.watch<ConnectionProvider>();
     final sessions = sessionProvider.sessions;
+
+    if (_isCreating && sessionProvider.currentSessionId != null && !sessionProvider.isLoading) {
+      _isCreating = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).pushNamed('/terminal');
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(

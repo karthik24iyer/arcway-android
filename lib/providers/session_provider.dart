@@ -12,6 +12,7 @@ class SessionProvider extends ChangeNotifier {
   String? _currentSessionId;
   bool _isLoading = false;
   String? _error;
+  bool _lastSkipPermissions = false;
 
   SessionProvider(this._ws) {
     _subscription = _ws.messages.listen(_onMessage);
@@ -37,6 +38,7 @@ class SessionProvider extends ChangeNotifier {
   void createSession(String directory, {bool skipPermissions = false}) {
     _isLoading = true;
     _error = null;
+    _lastSkipPermissions = skipPermissions;
     notifyListeners();
 
     final msg = SessionCreateRequest(
@@ -92,7 +94,11 @@ class SessionProvider extends ChangeNotifier {
         _isLoading = false;
         if (response.success) {
           _error = null;
-          loadSessions();
+          if (response.session != null) {
+            connectToSession(response.session!.id, skipPermissions: _lastSkipPermissions);
+          } else {
+            loadSessions();
+          }
         } else {
           _error = response.message ?? 'Failed to create session';
           notifyListeners();
