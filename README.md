@@ -1,16 +1,28 @@
-# claude_remote_android
+# Arcway Android
 
-A new Flutter project.
+Flutter app for remote terminal access via WebSocket.
 
-## Getting Started
+## Requirements
 
-This project is a starting point for a Flutter application.
+- Flutter SDK 3.7.2+
+- Android SDK (min API 21)
+- A running [arcway-backend](../arcway-backend) or relay server
 
-A few resources to get you started if this is your first Flutter project:
+## Setup
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+flutter pub get
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Run
+
+```bash
+# Run on connected device or emulator
+flutter run
+
+# Build APK
+flutter build apk
+
+# Build App Bundle (Play Store)
+flutter build appbundle
+```
