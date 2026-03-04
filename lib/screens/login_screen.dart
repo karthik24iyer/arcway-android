@@ -66,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Icon(Icons.terminal, size: 64, color: primary),
                 const SizedBox(height: 12),
                 Text(
-                  'Claude Remote',
+                  'Arcway',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: primary,
                         fontWeight: FontWeight.bold,

@@ -86,7 +86,7 @@ class _ClaudeRemoteAppState extends State<ClaudeRemoteApp> {
         ChangeNotifierProvider.value(value: _settingsProvider),
       ],
       child: MaterialApp(
-        title: 'Claude Remote',
+        title: 'Arcway',
         debugShowCheckedModeBanner: false,
         theme: _buildDraculaTheme(),
         initialRoute: widget.initialRoute,

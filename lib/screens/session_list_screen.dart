@@ -138,7 +138,7 @@ class _SessionListScreenState extends State<SessionListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Claude Remote Terminal'),
+        title: const Text('Arcway'),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
