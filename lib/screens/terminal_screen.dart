@@ -19,14 +19,15 @@ class TerminalScreen extends StatefulWidget {
 class _TerminalScreenState extends State<TerminalScreen> {
   late final Terminal _terminal;
   late final WebSocketService _ws;
+  late final TextEditingController _inputController;
+  late final FocusNode _inputFocusNode;
   StreamSubscription? _outputSub;
   int _seqNum = 0;
   String? _sessionId;
   Timer? _resizeDebounce;
-  bool _optionActive = false;
 
   static const _draculaTheme = TerminalTheme(
-    cursor: Color(0xFFF8F8F2),
+    cursor: Color(0x00000000),
     selection: Color(0xFF44475A),
     foreground: Color(0xFFF8F8F2),
     background: Color(0xFF282A36),
@@ -55,21 +56,20 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void initState() {
     super.initState();
     _terminal = Terminal(maxLines: 1000);
+    _inputController = TextEditingController();
+    _inputFocusNode = FocusNode();
     _ws = context.read<WebSocketService>();
     _sessionId = context.read<SessionProvider>().currentSessionId;
 
-    // Don't wire onOutput yet — wait for session_connect_response (ttyd pattern)
     _terminal.onResize = _onTerminalResize;
-
     _outputSub = _ws.messages.listen(_onServerMessage);
   }
 
   void _onTerminalOutput(String data) {
     if (_sessionId == null) return;
-    final input = (_optionActive && data == '\x7f') ? '\x1b\x7f' : data;
     final msg = TerminalInput(
       sessionId: _sessionId!,
-      input: input,
+      input: data,
       sequenceNumber: _seqNum++,
       timestamp: DateTime.now().toIso8601String(),
       id: 'input-${DateTime.now().millisecondsSinceEpoch}',
@@ -101,7 +101,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       }
     } else if (type == 'session_connect_response') {
       if (msg['data']?['success'] == true) {
-        _terminal.onOutput = _onTerminalOutput; // session ready — allow input
+        _terminal.onOutput = _onTerminalOutput;
       }
     }
   }
@@ -123,6 +123,27 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _ws.sendMessage(msg.toJson());
   }
 
+  void _sendLine() {
+    final text = _inputController.text;
+    if (text.isNotEmpty) _sendRawInput(text);
+    _sendEnter();
+    _inputController.clear();
+    _inputFocusNode.requestFocus();
+  }
+
+  void _sendEnter() {
+    if (_sessionId == null) return;
+    final msg = SpecialKeyInput(
+      sessionId: _sessionId!,
+      key: 'enter',
+      modifiers: [],
+      sequenceNumber: _seqNum++,
+      timestamp: DateTime.now().toIso8601String(),
+      id: 'sk-${DateTime.now().millisecondsSinceEpoch}',
+    );
+    _ws.sendMessage(msg.toJson());
+  }
+
   void _onVirtualKey(VoidCallback action) => action();
 
   SessionInfo? _currentSession(SessionProvider provider) {
@@ -136,6 +157,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void dispose() {
     _resizeDebounce?.cancel();
     _outputSub?.cancel();
+    _inputController.dispose();
+    _inputFocusNode.dispose();
     super.dispose();
   }
 
@@ -201,7 +224,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Connection lost banner
             if (isDisconnected)
               Container(
                 width: double.infinity,
@@ -232,22 +254,25 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   ],
                 ),
               ),
-            // Terminal view
+            // Terminal view — no focus/keyboard on tap
             Expanded(
-              child: TerminalView(
-                _terminal,
-                theme: _draculaTheme,
-                textStyle: const TerminalStyle(
-                  fontFamily: 'JetBrainsMono',
-                  fontSize: 13,
+              child: FocusScope(
+                canRequestFocus: false,
+                child: TerminalView(
+                  _terminal,
+                  theme: _draculaTheme,
+                  textStyle: const TerminalStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 13,
+                  ),
+                  autofocus: false,
+                  deleteDetection: true,
+                  keyboardType: TextInputType.visiblePassword,
                 ),
-                autofocus: true,
-                deleteDetection: true,
-                keyboardType: TextInputType.visiblePassword,
               ),
             ),
-            // Virtual keyboard
             _buildVirtualKeyboard(),
+            _buildInputBar(),
           ],
         ),
       ),
@@ -265,27 +290,82 @@ class _TerminalScreenState extends State<TerminalScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildKey('ESC', () => _onVirtualKey(() => _sendRawInput('\x1b'))),
+            _buildKey('Clear/Rewind', () => _onVirtualKey(() { _sendRawInput('\x1b'); _sendRawInput('\x1b'); })),
             _buildKey('Mode', () => _onVirtualKey(() => _sendRawInput('\x1b[Z'))),
             _buildKey('/', () => _onVirtualKey(() => _sendRawInput('/'))),
             _buildKey('/rename', () => _onVirtualKey(() => _sendRawInput('/rename '))),
-            _buildKey('\u2191', () => _onVirtualKey(() => _sendRawInput('\x1b[A'))),
-            _buildKey('\u2193', () => _onVirtualKey(() => _sendRawInput('\x1b[B'))),
-            _buildKey('Opt', () => setState(() => _optionActive = !_optionActive), active: _optionActive),
-            _buildKey('\u2190', () => _onVirtualKey(() => _sendRawInput(_optionActive ? '\x1bb' : '\x1b[D'))),
-            _buildKey('\u2192', () => _onVirtualKey(() => _sendRawInput(_optionActive ? '\x1bf' : '\x1b[C'))),
+            _buildKey('↑', () => _onVirtualKey(() => _sendRawInput('\x1b[A')), horizontalPadding: 12),
+            _buildKey('↓', () => _onVirtualKey(() => _sendRawInput('\x1b[B')), horizontalPadding: 12),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildKey(String label, VoidCallback onTap, {bool active = false}) {
+  Widget _buildInputBar() {
+    return Container(
+      color: const Color(0xFF21222C),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _inputController,
+              focusNode: _inputFocusNode,
+              minLines: 1,
+              maxLines: 5,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
+              style: const TextStyle(
+                color: Color(0xFFF8F8F2),
+                fontSize: 13,
+                fontFamily: 'JetBrainsMono',
+              ),
+              decoration: InputDecoration(
+                hintText: 'Type command…',
+                hintStyle: const TextStyle(color: Color(0xFF6272A4), fontSize: 13),
+                filled: true,
+                fillColor: const Color(0xFF282A36),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFF44475A)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFF44475A)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFFBD93F9)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          ElevatedButton(
+            onPressed: _sendLine,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFBD93F9),
+              foregroundColor: const Color(0xFF282A36),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            child: const Text('Send', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKey(String label, VoidCallback onTap, {bool active = false, double horizontalPadding = 8}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(4),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6),
         decoration: BoxDecoration(
           color: active ? const Color(0xFFBD93F9) : const Color(0xFF44475A),
           borderRadius: BorderRadius.circular(4),
