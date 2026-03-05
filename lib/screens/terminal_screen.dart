@@ -62,7 +62,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _sessionId = context.read<SessionProvider>().currentSessionId;
 
     _terminal.onResize = _onTerminalResize;
-    _outputSub = _ws.messages.listen(_onServerMessage);
+    _terminal.onOutput = _onTerminalOutput;
+    _outputSub = _ws.messagesWithReplay.listen(_onServerMessage);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _inputFocusNode.requestFocus());
   }
 
   void _onTerminalOutput(String data) {
@@ -98,10 +100,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
       final output = TerminalOutput.fromJson(msg);
       if (output.sessionId == _sessionId) {
         _terminal.write(output.output);
-      }
-    } else if (type == 'session_connect_response') {
-      if (msg['data']?['success'] == true) {
-        _terminal.onOutput = _onTerminalOutput;
       }
     }
   }

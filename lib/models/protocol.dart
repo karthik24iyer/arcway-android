@@ -419,7 +419,6 @@ class SessionConnectRequest extends BaseMessage {
 class SessionConnectResponse extends BaseMessage {
   final bool success;
   final String? sessionId;
-  final String? currentOutput;
   final TerminalSize? terminalSize;
   final String? error;
   final String? message;
@@ -427,7 +426,6 @@ class SessionConnectResponse extends BaseMessage {
   SessionConnectResponse({
     required this.success,
     this.sessionId,
-    this.currentOutput,
     this.terminalSize,
     this.error,
     this.message,
@@ -442,7 +440,6 @@ class SessionConnectResponse extends BaseMessage {
       'data': {
         'success': success,
         if (sessionId != null) 'session_id': sessionId,
-        if (currentOutput != null) 'current_output': currentOutput,
         if (terminalSize != null) 'terminal_size': terminalSize!.toJson(),
         if (error != null) 'error': error,
         if (message != null) 'message': message,
@@ -457,7 +454,6 @@ class SessionConnectResponse extends BaseMessage {
     return SessionConnectResponse(
       success: data['success'] as bool? ?? false,
       sessionId: data['session_id'] as String?,
-      currentOutput: data['current_output'] as String?,
       terminalSize: data['terminal_size'] != null
           ? TerminalSize.fromJson(data['terminal_size'] as Map<String, dynamic>)
           : null,
