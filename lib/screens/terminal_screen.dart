@@ -63,7 +63,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
     _terminal.onResize = _onTerminalResize;
     _terminal.onOutput = _onTerminalOutput;
-    _outputSub = _ws.messagesWithReplay.listen(_onServerMessage);
+    _outputSub = _ws.messages.listen(_onServerMessage);
     WidgetsBinding.instance.addPostFrameCallback((_) => _inputFocusNode.requestFocus());
   }
 
