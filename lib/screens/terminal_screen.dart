@@ -62,21 +62,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _sessionId = context.read<SessionProvider>().currentSessionId;
 
     _terminal.onResize = _onTerminalResize;
-    _terminal.onOutput = _onTerminalOutput;
     _outputSub = _ws.messages.listen(_onServerMessage);
     WidgetsBinding.instance.addPostFrameCallback((_) => _inputFocusNode.requestFocus());
-  }
-
-  void _onTerminalOutput(String data) {
-    if (_sessionId == null) return;
-    final msg = TerminalInput(
-      sessionId: _sessionId!,
-      input: data,
-      sequenceNumber: _seqNum++,
-      timestamp: DateTime.now().toIso8601String(),
-      id: 'input-${DateTime.now().millisecondsSinceEpoch}',
-    );
-    _ws.sendMessage(msg.toJson());
   }
 
   void _onTerminalResize(int width, int height, int pixelWidth, int pixelHeight) {
