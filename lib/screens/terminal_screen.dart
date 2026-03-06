@@ -126,7 +126,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (text.isNotEmpty) _sendRawInput(text);
     _sendEnter();
     _inputController.clear();
-    _inputFocusNode.requestFocus();
+    _inputFocusNode.unfocus(); // dismiss keyboard after send (from main)
   }
 
   void _sendEnter() {
@@ -162,57 +162,63 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final connectionProvider = context.watch<ConnectionProvider>();
-    final sessionProvider = context.watch<SessionProvider>();
-    final session = _currentSession(sessionProvider);
-    final isDisconnected = !connectionProvider.isConnected;
-
-    final statusColor = switch (session?.status) {
-      SessionStatus.active => const Color(0xFF50FA7B),
-      SessionStatus.idle => const Color(0xFFFFB86C),
-      SessionStatus.crashed => const Color(0xFFFF5555),
-      null => const Color(0xFF6272A4),
-    };
-    final statusLabel = switch (session?.status) {
-      SessionStatus.active => 'Active',
-      SessionStatus.idle => 'Idle',
-      SessionStatus.crashed => 'Crashed',
-      null => 'Unknown',
-    };
-
-    final titleText = session != null && session.name.isNotEmpty
-        ? session.name
-        : _sessionId?.substring(0, 8) ?? 'Terminal';
+    // Borrowed from main: viewInsetsOf only moves the input overlay, not the terminal canvas.
+    final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
 
     return Scaffold(
+      // Borrowed from main: prevent scaffold from resizing the body when keyboard opens.
+      // Without this, the Column squishes TerminalView → onResize fires → tmux reflows content.
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                titleText,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 15),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                statusLabel,
-                style: TextStyle(
-                  color: statusColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+        // Borrowed from main: isolate AppBar in Consumer so session status changes
+        // don't trigger a full widget rebuild (and a TerminalView repaint).
+        title: Consumer<SessionProvider>(
+          builder: (context, sessionProvider, _) {
+            final session = _currentSession(sessionProvider);
+            final statusColor = switch (session?.status) {
+              SessionStatus.active => const Color(0xFF50FA7B),
+              SessionStatus.idle => const Color(0xFFFFB86C),
+              SessionStatus.crashed => const Color(0xFFFF5555),
+              null => const Color(0xFF6272A4),
+            };
+            final statusLabel = switch (session?.status) {
+              SessionStatus.active => 'Active',
+              SessionStatus.idle => 'Idle',
+              SessionStatus.crashed => 'Crashed',
+              null => 'Unknown',
+            };
+            final titleText = session != null && session.name.isNotEmpty
+                ? session.name
+                : _sessionId?.substring(0, 8) ?? 'Terminal';
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    titleText,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 15),
+                  ),
                 ),
-              ),
-            ),
-          ],
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -222,55 +228,86 @@ class _TerminalScreenState extends State<TerminalScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            if (isDisconnected)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                color: const Color(0xFFFF5555),
-                child: Row(
-                  children: [
-                    const Icon(Icons.cloud_off, color: Color(0xFFF8F8F2), size: 16),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Connection lost',
-                        style: TextStyle(color: Color(0xFFF8F8F2), fontSize: 13),
-                      ),
+            // Borrowed from main: isolated Consumer so the banner appearing/disappearing
+            // doesn't rebuild TerminalView.
+            Consumer<ConnectionProvider>(
+              builder: (context, connectionProvider, _) {
+                if (!connectionProvider.isConnected) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    color: const Color(0xFFFF5555),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.cloud_off, color: Color(0xFFF8F8F2), size: 16),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Connection lost',
+                            style: TextStyle(color: Color(0xFFF8F8F2), fontSize: 13),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _disconnect,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'BACK',
+                            style: TextStyle(color: Color(0xFFF8F8F2), fontSize: 12),
+                          ),
+                        ),
+                      ],
                     ),
-                    TextButton(
-                      onPressed: _disconnect,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'BACK',
-                        style: TextStyle(color: Color(0xFFF8F8F2), fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            // Terminal view — no focus/keyboard on tap
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+            // Borrowed from main: Stack keeps TerminalView at a fixed size while the
+            // input overlay floats above the keyboard. No canvas resize = no reflow.
             Expanded(
-              child: FocusScope(
-                canRequestFocus: false,
-                child: TerminalView(
-                  _terminal,
-                  theme: _draculaTheme,
-                  textStyle: const TerminalStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontSize: 13,
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 100, // reserve space for virtual keyboard + input bar
+                    child: RepaintBoundary(
+                      child: FocusScope(
+                        canRequestFocus: false,
+                        child: TerminalView(
+                          _terminal,
+                          theme: _draculaTheme,
+                          textStyle: const TerminalStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 13,
+                          ),
+                          autofocus: false,
+                          deleteDetection: true,
+                          keyboardType: TextInputType.visiblePassword,
+                        ),
+                      ),
+                    ),
                   ),
-                  autofocus: false,
-                  deleteDetection: true,
-                  keyboardType: TextInputType.visiblePassword,
-                ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: keyboardHeight,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildVirtualKeyboard(),
+                        _buildInputBar(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            _buildVirtualKeyboard(),
-            _buildInputBar(),
           ],
         ),
       ),
