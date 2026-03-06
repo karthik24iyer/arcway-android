@@ -25,6 +25,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   int _seqNum = 0;
   String? _sessionId;
   Timer? _resizeDebounce;
+  // True until session_connect_response arrives; gates the loading overlay.
+  bool _isConnecting = true;
 
   static const _draculaTheme = TerminalTheme(
     cursor: Color(0x00000000),
@@ -63,7 +65,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
     _terminal.onResize = _onTerminalResize;
     _outputSub = _ws.messages.listen(_onServerMessage);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _inputFocusNode.requestFocus());
   }
 
   void _onTerminalResize(int width, int height, int pixelWidth, int pixelHeight) {
@@ -88,6 +89,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
       if (output.sessionId == _sessionId) {
         _terminal.write(output.output);
       }
+    } else if (type == 'session_connect_response') {
+      // Server has finished setting up the session (history sent, PTY attached).
+      if (_isConnecting && mounted) setState(() => _isConnecting = false);
     }
   }
 
@@ -292,6 +296,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
                       ],
                     ),
                   ),
+                  if (_isConnecting)
+                    const Positioned.fill(child: _SessionLoadingOverlay()),
                 ],
               ),
             ),
@@ -399,6 +405,115 @@ class _TerminalScreenState extends State<TerminalScreen> {
             fontSize: 12,
             fontFamily: 'JetBrainsMono',
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionLoadingOverlay extends StatefulWidget {
+  const _SessionLoadingOverlay();
+
+  @override
+  State<_SessionLoadingOverlay> createState() => _SessionLoadingOverlayState();
+}
+
+class _SessionLoadingOverlayState extends State<_SessionLoadingOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF282A36),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: AnimatedBuilder(
+                    animation: _controller,
+                    builder: (_, __) => CircularProgressIndicator(
+                      value: null,
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation(
+                        Color.lerp(
+                          const Color(0xFFBD93F9),
+                          const Color(0xFF8BE9FD),
+                          _controller.value,
+                        )!,
+                      ),
+                      backgroundColor: const Color(0xFF44475A),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF44475A),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      '>_',
+                      style: TextStyle(
+                        color: Color(0xFFBD93F9),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'JetBrainsMono',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (_, __) {
+                final dots = '.' * ((_controller.value * 4).floor() % 4);
+                final pad = '   '.substring(dots.length);
+                return Text(
+                  'Starting session$dots$pad',
+                  style: const TextStyle(
+                    color: Color(0xFFF8F8F2),
+                    fontSize: 14,
+                    fontFamily: 'JetBrainsMono',
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'loading history…',
+              style: TextStyle(
+                color: Color(0xFF6272A4),
+                fontSize: 12,
+                fontFamily: 'JetBrainsMono',
+              ),
+            ),
+          ],
         ),
       ),
     );
