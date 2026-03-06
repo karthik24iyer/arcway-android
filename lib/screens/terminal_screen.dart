@@ -55,7 +55,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   @override
   void initState() {
     super.initState();
-    _terminal = Terminal(maxLines: 1000);
+    _terminal = Terminal(maxLines: 5000);
     _inputController = TextEditingController();
     _inputFocusNode = FocusNode();
     _ws = context.read<WebSocketService>();
