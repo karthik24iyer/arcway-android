@@ -13,6 +13,7 @@ class SessionProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _lastSkipPermissions = false;
+  bool _isSessionConnected = false;
 
   SessionProvider(this._ws) {
     _subscription = _ws.messages.listen(_onMessage);
@@ -22,6 +23,7 @@ class SessionProvider extends ChangeNotifier {
   String? get currentSessionId => _currentSessionId;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get isSessionConnected => _isSessionConnected;
 
   void loadSessions() {
     _isLoading = true;
@@ -52,6 +54,7 @@ class SessionProvider extends ChangeNotifier {
 
   void connectToSession(String sessionId, {bool skipPermissions = false}) {
     _currentSessionId = sessionId;
+    _isSessionConnected = false;
     _error = null;
     notifyListeners();
 
@@ -66,6 +69,7 @@ class SessionProvider extends ChangeNotifier {
 
   void disconnectFromSession() {
     _currentSessionId = null;
+    _isSessionConnected = false;
     notifyListeners();
   }
 
@@ -106,8 +110,12 @@ class SessionProvider extends ChangeNotifier {
 
       case 'session_connect_response':
         final response = SessionConnectResponse.fromJson(msg);
-        if (!response.success) {
+        if (response.success) {
+          _isSessionConnected = true;
+          notifyListeners();
+        } else {
           _currentSessionId = null;
+          _isSessionConnected = false;
           _error = response.message ?? 'Failed to connect to session';
           notifyListeners();
         }

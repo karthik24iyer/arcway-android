@@ -26,7 +26,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   String? _sessionId;
   Timer? _resizeDebounce;
   // True until session_connect_response arrives; gates the loading overlay.
-  bool _isConnecting = true;
+  late bool _isConnecting;
+  final _terminalScrollController = ScrollController();
 
   static const _draculaTheme = TerminalTheme(
     cursor: Color(0x00000000),
@@ -61,9 +62,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _inputController = TextEditingController();
     _inputFocusNode = FocusNode();
     _ws = context.read<WebSocketService>();
-    _sessionId = context.read<SessionProvider>().currentSessionId;
+    final sessionProvider = context.read<SessionProvider>();
+    _sessionId = sessionProvider.currentSessionId;
+    _isConnecting = !sessionProvider.isSessionConnected;
 
     _terminal.onResize = _onTerminalResize;
+    _terminal.addListener(_onTerminalUpdate);
     _outputSub = _ws.messages.listen(_onServerMessage);
   }
 
@@ -91,7 +95,37 @@ class _TerminalScreenState extends State<TerminalScreen> {
       }
     } else if (type == 'session_connect_response') {
       // Server has finished setting up the session (history sent, PTY attached).
-      if (_isConnecting && mounted) setState(() => _isConnecting = false);
+      if (_isConnecting && mounted) {
+        setState(() => _isConnecting = false);
+        // Explicitly jump to bottom after overlay disappears — also resets
+        // xterm's internal _stickToBottom flag to true.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _terminalScrollController.hasClients) {
+            _terminalScrollController.jumpTo(
+              _terminalScrollController.position.maxScrollExtent,
+            );
+          }
+        });
+      }
+    }
+  }
+
+  // xterm v4 has a race condition: applyContentDimensions() fires _onScroll()
+  // synchronously inside performLayout(), reading a stale _scrollOffset against
+  // the just-grown _maxScrollExtent → _stickToBottom becomes false → no
+  // auto-scroll. We fix this by managing scroll ourselves via the controller.
+  void _onTerminalUpdate() {
+    if (!mounted || !_terminalScrollController.hasClients) return;
+    final pos = _terminalScrollController.position;
+    // Only follow output if the user is within one viewport of the bottom.
+    if (pos.pixels >= pos.maxScrollExtent - pos.viewportDimension) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _terminalScrollController.hasClients) {
+          _terminalScrollController.jumpTo(
+            _terminalScrollController.position.maxScrollExtent,
+          );
+        }
+      });
     }
   }
 
@@ -146,6 +180,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void dispose() {
     _resizeDebounce?.cancel();
     _outputSub?.cancel();
+    _terminal.removeListener(_onTerminalUpdate);
+    _terminalScrollController.dispose();
     _inputController.dispose();
     _inputFocusNode.dispose();
     super.dispose();
@@ -273,6 +309,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                         child: TerminalView(
                           _terminal,
                           theme: _draculaTheme,
+                          scrollController: _terminalScrollController,
                           textStyle: const TerminalStyle(
                             fontFamily: 'JetBrainsMono',
                             fontSize: 13,
