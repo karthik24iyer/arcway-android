@@ -27,6 +27,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   Timer? _resizeDebounce;
   // True until session_connect_response arrives; gates the loading overlay.
   late bool _isConnecting;
+  static const _inputAreaHeight = 100.0;
   final _terminalScrollController = ScrollController();
 
   static const _draculaTheme = TerminalTheme(
@@ -107,6 +108,13 @@ class _TerminalScreenState extends State<TerminalScreen> {
           }
         });
       }
+    } else if (type == 'status_update') {
+      if (_isConnecting && mounted) {
+        final status = msg['data']?['status'] as String?;
+        if (status == 'idle' || status == 'crashed') {
+          setState(() => _isConnecting = false);
+        }
+      }
     }
   }
 
@@ -151,7 +159,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (text.isNotEmpty) _sendRawInput(text);
     _sendEnter();
     _inputController.clear();
-    _inputFocusNode.unfocus(); // dismiss keyboard after send (from main)
+    _inputFocusNode.unfocus();
   }
 
   void _sendEnter() {
@@ -166,8 +174,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
     );
     _ws.sendMessage(msg.toJson());
   }
-
-  void _onVirtualKey(VoidCallback action) => action();
 
   SessionInfo? _currentSession(SessionProvider provider) {
     if (_sessionId == null) return null;
@@ -189,15 +195,15 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Borrowed from main: viewInsetsOf only moves the input overlay, not the terminal canvas.
+    // viewInsetsOf only moves the input overlay, not the terminal canvas.
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
 
     return Scaffold(
-      // Borrowed from main: prevent scaffold from resizing the body when keyboard opens.
+      // prevent scaffold from resizing the body when keyboard opens.
       // Without this, the Column squishes TerminalView → onResize fires → tmux reflows content.
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        // Borrowed from main: isolate AppBar in Consumer so session status changes
+        // isolate AppBar in Consumer so session status changes
         // don't trigger a full widget rebuild (and a TerminalView repaint).
         title: Consumer<SessionProvider>(
           builder: (context, sessionProvider, _) {
@@ -255,7 +261,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Borrowed from main: isolated Consumer so the banner appearing/disappearing
+            // isolated Consumer so the banner appearing/disappearing
             // doesn't rebuild TerminalView.
             Consumer<ConnectionProvider>(
               builder: (context, connectionProvider, _) {
@@ -293,7 +299,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                 return const SizedBox.shrink();
               },
             ),
-            // Borrowed from main: Stack keeps TerminalView at a fixed size while the
+            // Stack keeps TerminalView at a fixed size while the
             // input overlay floats above the keyboard. No canvas resize = no reflow.
             Expanded(
               child: Stack(
@@ -302,7 +308,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                     top: 0,
                     left: 0,
                     right: 0,
-                    bottom: 100, // reserve space for virtual keyboard + input bar
+                    bottom: _inputAreaHeight, // reserve space for virtual keyboard + input bar
                     child: RepaintBoundary(
                       child: FocusScope(
                         canRequestFocus: false,
@@ -355,12 +361,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildKey('Clear/Rewind', () => _onVirtualKey(() { _sendRawInput('\x1b'); _sendRawInput('\x1b'); })),
-            _buildKey('Mode', () => _onVirtualKey(() => _sendRawInput('\x1b[Z'))),
-            _buildKey('/', () => _onVirtualKey(() => _sendRawInput('/'))),
-            _buildKey('/rename', () => _onVirtualKey(() => _sendRawInput('/rename '))),
-            _buildKey('↑', () => _onVirtualKey(() => _sendRawInput('\x1b[A')), horizontalPadding: 12),
-            _buildKey('↓', () => _onVirtualKey(() => _sendRawInput('\x1b[B')), horizontalPadding: 12),
+            _buildKey('Clear/Rewind', () { _sendRawInput('\x1b'); _sendRawInput('\x1b'); }),
+            _buildKey('Mode', () => _sendRawInput('\x1b[Z')),
+            _buildKey('/', () => _sendRawInput('/')),
+            _buildKey('/rename', () => _sendRawInput('/rename ')),
+            _buildKey('↑', () => _sendRawInput('\x1b[A'), horizontalPadding: 12),
+            _buildKey('↓', () => _sendRawInput('\x1b[B'), horizontalPadding: 12),
           ],
         ),
       ),
