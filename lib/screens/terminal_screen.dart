@@ -199,8 +199,18 @@ class _TerminalScreenState extends State<TerminalScreen> {
           builder: (context, sessionProvider, _) {
             final idx = _sessionId != null ? sessionProvider.sessions.indexWhere((s) => s.id == _sessionId) : -1;
             final session = idx >= 0 ? sessionProvider.sessions[idx] : null;
-            final statusColor = session?.status.color ?? const Color(0xFF6272A4);
-            final statusLabel = session?.status.label ?? 'Unknown';
+            final statusColor = switch (session?.status) {
+              SessionStatus.active => const Color(0xFF50FA7B),
+              SessionStatus.idle => const Color(0xFFFFB86C),
+              SessionStatus.crashed => const Color(0xFFFF5555),
+              null => const Color(0xFF6272A4),
+            };
+            final statusLabel = switch (session?.status) {
+              SessionStatus.active => 'Active',
+              SessionStatus.idle => 'Idle',
+              SessionStatus.crashed => 'Crashed',
+              null => 'Unknown',
+            };
             final titleText = session != null && session.name.isNotEmpty
                 ? session.name
                 : _sessionId?.substring(0, 8) ?? 'Terminal';

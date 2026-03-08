@@ -129,16 +129,10 @@ class _SessionListScreenState extends State<SessionListScreen> {
     final connectionProvider = context.watch<ConnectionProvider>();
     final sessions = sessionProvider.sessions;
 
-    if (_isCreating && sessionProvider.createdSessionId != null) {
+    if (_isCreating && sessionProvider.currentSessionId != null && !sessionProvider.isLoading) {
       _isCreating = false;
-      final sessionId = sessionProvider.createdSessionId!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final settings = context.read<SettingsProvider>();
-        context.read<SessionProvider>()
-          ..clearCreatedSession()
-          ..connectToSession(sessionId, skipPermissions: settings.skipPermissions);
-        Navigator.of(context).pushNamed('/terminal');
+        if (mounted) Navigator.of(context).pushNamed('/terminal');
       });
     }
 
@@ -230,8 +224,16 @@ class _SessionListScreenState extends State<SessionListScreen> {
   }
 
   Widget _buildSessionCard(SessionInfo session) {
-    final statusColor = session.status.color;
-    final statusLabel = session.status.label;
+    final statusColor = switch (session.status) {
+      SessionStatus.active => const Color(0xFF50FA7B),
+      SessionStatus.idle => const Color(0xFFFFB86C),
+      SessionStatus.crashed => const Color(0xFFFF5555),
+    };
+    final statusLabel = switch (session.status) {
+      SessionStatus.active => 'Active',
+      SessionStatus.idle => 'Idle',
+      SessionStatus.crashed => 'Crashed',
+    };
     final displayName = session.name.isNotEmpty ? session.name : session.id;
 
     return Card(

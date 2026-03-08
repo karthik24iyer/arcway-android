@@ -23,7 +23,6 @@ class AuthService {
   String? _deviceId;
 
   String? get _effectiveToken => _sessionToken ?? _token;
-  String? get deviceId => _deviceId;
 
   AuthService(this._ws);
 
@@ -190,6 +189,10 @@ class AuthService {
     }
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     return body['token'] as String;
+  }
+
+  Future<void> reconnect() async {
+    if (_deviceId != null) await connectToDevice(_deviceId!);
   }
 
   Future<void> connectToDevice(String deviceId) async {

@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
-
 abstract class BaseMessage {
   final String type;
   final String timestamp;
@@ -943,20 +941,6 @@ class StatusUpdate extends BaseMessage {
       id: json['id'] as String? ?? '',
     );
   }
-}
-
-extension SessionStatusDisplay on SessionStatus {
-  Color get color => switch (this) {
-    SessionStatus.active => const Color(0xFF50FA7B),
-    SessionStatus.idle => const Color(0xFFFFB86C),
-    SessionStatus.crashed => const Color(0xFFFF5555),
-  };
-
-  String get label => switch (this) {
-    SessionStatus.active => 'Active',
-    SessionStatus.idle => 'Idle',
-    SessionStatus.crashed => 'Crashed',
-  };
 }
 
 class MessageValidator {

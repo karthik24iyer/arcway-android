@@ -10,9 +10,9 @@ class SessionProvider extends ChangeNotifier {
   StreamSubscription? _subscription;
   List<SessionInfo> _sessions = [];
   String? _currentSessionId;
-  String? _createdSessionId;
   bool _isLoading = false;
   String? _error;
+  bool _lastSkipPermissions = false;
   bool _isSessionConnected = false;
 
   SessionProvider(this._ws) {
@@ -21,12 +21,9 @@ class SessionProvider extends ChangeNotifier {
 
   List<SessionInfo> get sessions => List.unmodifiable(_sessions);
   String? get currentSessionId => _currentSessionId;
-  String? get createdSessionId => _createdSessionId;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isSessionConnected => _isSessionConnected;
-
-  void clearCreatedSession() { _createdSessionId = null; }
 
   void _setLoading() {
     _isLoading = true;
@@ -44,6 +41,7 @@ class SessionProvider extends ChangeNotifier {
   }
 
   void createSession(String directory, {bool skipPermissions = false}) {
+    _lastSkipPermissions = skipPermissions;
     _setLoading();
     final msg = SessionCreateRequest(
       directory: directory,
@@ -101,7 +99,7 @@ class SessionProvider extends ChangeNotifier {
         if (response.success) {
           _error = null;
           if (response.session != null) {
-            _createdSessionId = response.session!.id;
+            connectToSession(response.session!.id, skipPermissions: _lastSkipPermissions);
           } else {
             loadSessions();
           }

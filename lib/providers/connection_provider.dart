@@ -31,9 +31,7 @@ class ConnectionProvider extends ChangeNotifier {
     if (_isReconnecting) return;
     _isReconnecting = true;
     try {
-      if (_authService.deviceId != null) {
-        await _authService.connectToDevice(_authService.deviceId!);
-      }
+      await _authService.reconnect();
     } catch (_) {} finally {
       _isReconnecting = false;
     }
