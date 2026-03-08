@@ -118,10 +118,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
   }
 
-  // xterm v4 has a race condition: applyContentDimensions() fires _onScroll()
-  // synchronously inside performLayout(), reading a stale _scrollOffset against
-  // the just-grown _maxScrollExtent → _stickToBottom becomes false → no
-  // auto-scroll. We fix this by managing scroll ourselves via the controller.
+  // Manage scroll manually to work around xterm v4 stickToBottom race condition.
   void _onTerminalUpdate() {
     if (!mounted || !_terminalScrollController.hasClients) return;
     final pos = _terminalScrollController.position;
@@ -175,13 +172,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _ws.sendMessage(msg.toJson());
   }
 
-  SessionInfo? _currentSession(SessionProvider provider) {
-    if (_sessionId == null) return null;
-    final sessions = provider.sessions;
-    final idx = sessions.indexWhere((s) => s.id == _sessionId);
-    return idx >= 0 ? sessions[idx] : null;
-  }
-
   @override
   void dispose() {
     _resizeDebounce?.cancel();
@@ -207,19 +197,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
         // don't trigger a full widget rebuild (and a TerminalView repaint).
         title: Consumer<SessionProvider>(
           builder: (context, sessionProvider, _) {
-            final session = _currentSession(sessionProvider);
-            final statusColor = switch (session?.status) {
-              SessionStatus.active => const Color(0xFF50FA7B),
-              SessionStatus.idle => const Color(0xFFFFB86C),
-              SessionStatus.crashed => const Color(0xFFFF5555),
-              null => const Color(0xFF6272A4),
-            };
-            final statusLabel = switch (session?.status) {
-              SessionStatus.active => 'Active',
-              SessionStatus.idle => 'Idle',
-              SessionStatus.crashed => 'Crashed',
-              null => 'Unknown',
-            };
+            final idx = _sessionId != null ? sessionProvider.sessions.indexWhere((s) => s.id == _sessionId) : -1;
+            final session = idx >= 0 ? sessionProvider.sessions[idx] : null;
+            final statusColor = session?.status.color ?? const Color(0xFF6272A4);
+            final statusLabel = session?.status.label ?? 'Unknown';
             final titleText = session != null && session.name.isNotEmpty
                 ? session.name
                 : _sessionId?.substring(0, 8) ?? 'Terminal';

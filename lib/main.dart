@@ -51,21 +51,9 @@ class ClaudeRemoteApp extends StatefulWidget {
 }
 
 class _ClaudeRemoteAppState extends State<ClaudeRemoteApp> {
-  late final WebSocketService _wsService;
-  late final AuthService _authService;
-  late final SettingsProvider _settingsProvider;
-
-  @override
-  void initState() {
-    super.initState();
-    _wsService = widget.wsService;
-    _authService = widget.authService;
-    _settingsProvider = widget.settingsProvider;
-  }
-
   @override
   void dispose() {
-    _wsService.dispose();
+    widget.wsService.dispose();
     super.dispose();
   }
 
@@ -73,17 +61,17 @@ class _ClaudeRemoteAppState extends State<ClaudeRemoteApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<WebSocketService>.value(value: _wsService),
+        Provider<WebSocketService>.value(value: widget.wsService),
         ChangeNotifierProvider(
-          create: (_) => ConnectionProvider(_wsService, _authService),
+          create: (_) => ConnectionProvider(widget.wsService, widget.authService),
         ),
         ChangeNotifierProvider(
-          create: (_) => AuthProvider(_authService),
+          create: (_) => AuthProvider(widget.authService),
         ),
         ChangeNotifierProvider(
-          create: (_) => SessionProvider(_wsService),
+          create: (_) => SessionProvider(widget.wsService),
         ),
-        ChangeNotifierProvider.value(value: _settingsProvider),
+        ChangeNotifierProvider.value(value: widget.settingsProvider),
       ],
       child: MaterialApp(
         title: 'Arcway',

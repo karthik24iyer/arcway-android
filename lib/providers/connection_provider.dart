@@ -20,7 +20,7 @@ class ConnectionProvider extends ChangeNotifier {
       notifyListeners();
       if (!connected && !_isReconnecting) {
         _reconnectTimer?.cancel();
-        _reconnectTimer = Timer(const Duration(seconds: 2), _reconnect);
+        _reconnectTimer = Timer(const Duration(seconds: 2), reconnect);
       }
     });
   }
@@ -31,13 +31,13 @@ class ConnectionProvider extends ChangeNotifier {
     if (_isReconnecting) return;
     _isReconnecting = true;
     try {
-      await _authService.reconnect();
+      if (_authService.deviceId != null) {
+        await _authService.connectToDevice(_authService.deviceId!);
+      }
     } catch (_) {} finally {
       _isReconnecting = false;
     }
   }
-
-  void _reconnect() => reconnect();
 
   @override
   void dispose() {

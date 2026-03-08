@@ -18,10 +18,12 @@ class AuthService {
   static const _keyToken = 'auth_token';
   static const _keySessionToken = 'session_token';
   static const _keyUsername = 'auth_username';
-  static const _keyPermissions = 'auth_permissions';
 
   String? _sessionToken;
   String? _deviceId;
+
+  String? get _effectiveToken => _sessionToken ?? _token;
+  String? get deviceId => _deviceId;
 
   AuthService(this._ws);
 
@@ -77,9 +79,7 @@ class AuthService {
         ),
       );
 
-      _messageSubscription?.cancel();
-      _messageSubscription = null;
-      _authCompleter = null;
+      _clearAuthState();
 
       if (response.success && response.token != null) {
         _token = response.token;
@@ -91,9 +91,7 @@ class AuthService {
 
       return response;
     } catch (e) {
-      _messageSubscription?.cancel();
-      _messageSubscription = null;
-      _authCompleter = null;
+      _clearAuthState();
       _ws.disconnect();
       rethrow;
     }
@@ -109,7 +107,6 @@ class AuthService {
   Future<bool> loadSavedSession() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Check for relay session token first (Phase 3)
     final sessionToken = prefs.getString(_keySessionToken);
     if (sessionToken != null) {
       _sessionToken = sessionToken;
@@ -117,17 +114,12 @@ class AuthService {
       return true;
     }
 
-    // Fall back to legacy auth_token
     final token = prefs.getString(_keyToken);
     final username = prefs.getString(_keyUsername);
-    final permissions = prefs.getStringList(_keyPermissions);
 
     if (token != null && username != null) {
       _token = token;
-      _userInfo = UserInfo(
-        username: username,
-        permissions: permissions ?? [],
-      );
+      _userInfo = UserInfo(username: username, permissions: []);
       return true;
     }
     return false;
@@ -174,10 +166,9 @@ class AuthService {
   }
 
   Future<List<Map<String, dynamic>>> fetchDevices() async {
-    final token = _sessionToken ?? _token;
     final response = await http.get(
       Uri.parse('$kRelayHttpUrl/api/devices'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: {'Authorization': 'Bearer $_effectiveToken'},
     );
 
     if (response.statusCode != 200) {
@@ -190,10 +181,9 @@ class AuthService {
   }
 
   Future<String> generateLinkToken() async {
-    final token = _sessionToken ?? _token;
     final response = await http.post(
       Uri.parse('$kRelayHttpUrl/api/devices/link-token'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: {'Authorization': 'Bearer $_effectiveToken'},
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to generate link token: ${response.statusCode}');
@@ -202,13 +192,8 @@ class AuthService {
     return body['token'] as String;
   }
 
-  Future<void> reconnect() async {
-    if (_deviceId != null) await connectToDevice(_deviceId!);
-  }
-
   Future<void> connectToDevice(String deviceId) async {
     _deviceId = deviceId;
-    final token = _sessionToken ?? _token;
     final wsUrl = '$kRelayWsUrl/client';
 
     _authCompleter = Completer<AuthResponse>();
@@ -233,7 +218,7 @@ class AuthService {
 
     _ws.sendMessage({
       'type': 'auth',
-      'session_token': token,
+      'session_token': _effectiveToken,
       'device_id': deviceId,
     });
 
@@ -243,19 +228,20 @@ class AuthService {
         onTimeout: () => throw TimeoutException('Device connection timed out'),
       );
     } finally {
-      _messageSubscription?.cancel();
-      _messageSubscription = null;
-      _authCompleter = null;
+      _clearAuthState();
     }
+  }
+
+  void _clearAuthState() {
+    _messageSubscription?.cancel();
+    _messageSubscription = null;
+    _authCompleter = null;
   }
 
   Future<void> _saveCredentials(String serverUrl) async {
     final prefs = await SharedPreferences.getInstance();
     if (_token != null) prefs.setString(_keyToken, _token!);
-    if (_userInfo != null) {
-      prefs.setString(_keyUsername, _userInfo!.username);
-      prefs.setStringList(_keyPermissions, _userInfo!.permissions);
-    }
+    if (_userInfo != null) prefs.setString(_keyUsername, _userInfo!.username);
   }
 
   Future<void> _clearCredentials() async {
@@ -263,7 +249,6 @@ class AuthService {
     prefs.remove(_keyToken);
     prefs.remove(_keySessionToken);
     prefs.remove(_keyUsername);
-    prefs.remove(_keyPermissions);
     _sessionToken = null;
   }
 }

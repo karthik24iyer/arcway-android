@@ -16,6 +16,11 @@ class _LoginScreenState extends State<LoginScreen> {
     serverClientId: '260109272007-6bqlpils04thtrp426reojome3hnlef2.apps.googleusercontent.com',
   );
 
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   Future<void> _handleGoogleSignIn() async {
     final authProvider = context.read<AuthProvider>();
 
@@ -26,11 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final auth = await account.authentication;
       final idToken = auth.idToken;
       if (idToken == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to get ID token')),
-          );
-        }
+        _showError('Failed to get ID token');
         return;
       }
 
@@ -41,11 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pushReplacementNamed('/devices');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
+      _showError(e.toString());
     }
   }
 

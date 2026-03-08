@@ -26,6 +26,11 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
     if (mounted) setState(() => _devices = devices);
   }
 
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   Future<void> _connectToDevice(String deviceId) async {
     final authProvider = context.read<AuthProvider>();
     try {
@@ -33,10 +38,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/sessions');
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connection failed: $e')),
-      );
+      _showError('Connection failed: $e');
     }
   }
 
@@ -79,10 +81,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
-      );
+      _showError('Failed: $e');
     }
   }
 
@@ -92,10 +91,63 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
     Navigator.of(context).pushReplacementNamed('/login');
   }
 
+  Widget _buildBody(AuthProvider authProvider) {
+    if (authProvider.isLoading && _devices.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (authProvider.error != null && _devices.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                authProvider.error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadDevices,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadDevices,
+      child: _devices.isEmpty
+          ? const Center(child: Text('No devices found'))
+          : ListView.builder(
+              itemCount: _devices.length,
+              itemBuilder: (context, index) {
+                final device = _devices[index];
+                final isOnline = device['online'] == true;
+                return ListTile(
+                  leading: Icon(
+                    Icons.circle,
+                    size: 12,
+                    color: isOnline
+                        ? const Color(0xFF50FA7B)
+                        : const Color(0xFF6272A4),
+                  ),
+                  title: Text(device['name'] as String? ?? device['id'] as String),
+                  subtitle: Text(isOnline ? 'Online' : 'Offline'),
+                  onTap: isOnline
+                      ? () => _connectToDevice(device['id'] as String)
+                      : null,
+                );
+              },
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final isLoading = authProvider.isLoading;
 
     return Scaffold(
       appBar: AppBar(
@@ -113,57 +165,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
         tooltip: 'Add Mac',
         child: const Icon(Icons.add),
       ),
-      body: isLoading && _devices.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : authProvider.error != null && _devices.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          authProvider.error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadDevices,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadDevices,
-                  child: _devices.isEmpty
-                      ? const Center(child: Text('No devices found'))
-                      : ListView.builder(
-                          itemCount: _devices.length,
-                          itemBuilder: (context, index) {
-                            final device = _devices[index];
-                            final isOnline = device['online'] == true;
-                            return ListTile(
-                              leading: Icon(
-                                Icons.circle,
-                                size: 12,
-                                color: isOnline
-                                    ? const Color(0xFF50FA7B)
-                                    : const Color(0xFF6272A4),
-                              ),
-                              title: Text(device['name'] as String? ?? device['id'] as String),
-                              subtitle: Text(isOnline ? 'Online' : 'Offline'),
-                              onTap: isOnline
-                                  ? () => _connectToDevice(device['id'] as String)
-                                  : null,
-                            );
-                          },
-                        ),
-                ),
+      body: _buildBody(authProvider),
     );
   }
 }

@@ -8,19 +8,16 @@ class WebSocketService {
   StreamSubscription? _subscription;
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   final _connectionStateController = StreamController<bool>.broadcast();
-  String? _serverUrl;
   bool _isConnected = false;
 
   Stream<Map<String, dynamic>> get messages => _messageController.stream;
 
   Stream<bool> get connectionState => _connectionStateController.stream;
   bool get isConnected => _isConnected;
-  String? get serverUrl => _serverUrl;
 
   Future<void> connect(String serverUrl) async {
     if (_isConnected) disconnect();
 
-    _serverUrl = serverUrl;
     try {
       _channel = WebSocketChannel.connect(Uri.parse(serverUrl));
       await _channel!.ready;
@@ -47,7 +44,7 @@ class WebSocketService {
   }
 
   void sendMessage(Map<String, dynamic> msg) {
-    if (!_isConnected || _channel == null) return;
+    if (!_isConnected) return;
     _channel!.sink.add(jsonEncode(msg));
   }
 

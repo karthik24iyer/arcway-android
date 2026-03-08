@@ -129,10 +129,16 @@ class _SessionListScreenState extends State<SessionListScreen> {
     final connectionProvider = context.watch<ConnectionProvider>();
     final sessions = sessionProvider.sessions;
 
-    if (_isCreating && sessionProvider.currentSessionId != null && !sessionProvider.isLoading) {
+    if (_isCreating && sessionProvider.createdSessionId != null) {
       _isCreating = false;
+      final sessionId = sessionProvider.createdSessionId!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).pushNamed('/terminal');
+        if (!mounted) return;
+        final settings = context.read<SettingsProvider>();
+        context.read<SessionProvider>()
+          ..clearCreatedSession()
+          ..connectToSession(sessionId, skipPermissions: settings.skipPermissions);
+        Navigator.of(context).pushNamed('/terminal');
       });
     }
 
@@ -153,7 +159,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
       ),
       body: Column(
         children: [
-          // Connection banner
           if (!connectionProvider.isConnected)
             Container(
               width: double.infinity,
@@ -169,7 +174,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
               ),
             ),
 
-          // Error banner
           if (sessionProvider.error != null)
             Container(
               width: double.infinity,
@@ -182,7 +186,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
               ),
             ),
 
-          // Session list
           Expanded(
             child: sessionProvider.isLoading && sessions.isEmpty
                 ? const Center(child: CircularProgressIndicator())
@@ -227,16 +230,8 @@ class _SessionListScreenState extends State<SessionListScreen> {
   }
 
   Widget _buildSessionCard(SessionInfo session) {
-    final statusColor = switch (session.status) {
-      SessionStatus.active => const Color(0xFF50FA7B),
-      SessionStatus.idle => const Color(0xFFFFB86C),
-      SessionStatus.crashed => const Color(0xFFFF5555),
-    };
-    final statusLabel = switch (session.status) {
-      SessionStatus.active => 'Active',
-      SessionStatus.idle => 'Idle',
-      SessionStatus.crashed => 'Crashed',
-    };
+    final statusColor = session.status.color;
+    final statusLabel = session.status.label;
     final displayName = session.name.isNotEmpty ? session.name : session.id;
 
     return Card(
@@ -250,7 +245,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // Status indicator
               Container(
                 width: 10,
                 height: 10,
@@ -260,7 +254,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              // Session info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,7 +291,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Status badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(

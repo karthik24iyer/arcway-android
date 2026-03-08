@@ -10,9 +10,9 @@ class SessionProvider extends ChangeNotifier {
   StreamSubscription? _subscription;
   List<SessionInfo> _sessions = [];
   String? _currentSessionId;
+  String? _createdSessionId;
   bool _isLoading = false;
   String? _error;
-  bool _lastSkipPermissions = false;
   bool _isSessionConnected = false;
 
   SessionProvider(this._ws) {
@@ -21,15 +21,21 @@ class SessionProvider extends ChangeNotifier {
 
   List<SessionInfo> get sessions => List.unmodifiable(_sessions);
   String? get currentSessionId => _currentSessionId;
+  String? get createdSessionId => _createdSessionId;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isSessionConnected => _isSessionConnected;
 
-  void loadSessions() {
+  void clearCreatedSession() { _createdSessionId = null; }
+
+  void _setLoading() {
     _isLoading = true;
     _error = null;
     notifyListeners();
+  }
 
+  void loadSessions() {
+    _setLoading();
     final msg = SessionListRequest(
       timestamp: DateTime.now().toIso8601String(),
       id: 'list-${DateTime.now().millisecondsSinceEpoch}',
@@ -38,11 +44,7 @@ class SessionProvider extends ChangeNotifier {
   }
 
   void createSession(String directory, {bool skipPermissions = false}) {
-    _isLoading = true;
-    _error = null;
-    _lastSkipPermissions = skipPermissions;
-    notifyListeners();
-
+    _setLoading();
     final msg = SessionCreateRequest(
       directory: directory,
       skipPermissions: skipPermissions,
@@ -99,14 +101,14 @@ class SessionProvider extends ChangeNotifier {
         if (response.success) {
           _error = null;
           if (response.session != null) {
-            connectToSession(response.session!.id, skipPermissions: _lastSkipPermissions);
+            _createdSessionId = response.session!.id;
           } else {
             loadSessions();
           }
         } else {
           _error = response.message ?? 'Failed to create session';
-          notifyListeners();
         }
+        notifyListeners();
 
       case 'session_connect_response':
         final response = SessionConnectResponse.fromJson(msg);
@@ -139,15 +141,10 @@ class SessionProvider extends ChangeNotifier {
         final update = StatusUpdate.fromJson(msg);
         final idx = _sessions.indexWhere((s) => s.id == update.sessionId);
         if (idx >= 0) {
-          _sessions[idx] = SessionInfo(
-            id: _sessions[idx].id,
-            name: _sessions[idx].name,
-            workingDirectory: _sessions[idx].workingDirectory,
-            created: _sessions[idx].created,
+          _sessions[idx] = _sessions[idx].copyWith(
             lastActivity: update.lastActivity,
             isActive: update.status == SessionStatus.active,
             status: update.status,
-            pid: _sessions[idx].pid,
           );
           notifyListeners();
         }
