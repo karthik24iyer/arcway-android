@@ -229,6 +229,20 @@ class _TerminalScreenState extends State<TerminalScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: _disconnect,
         ),
+        actions: [
+          if (!_isConnecting)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                _forceScrollToBottom = false;
+                setState(() => _isConnecting = true);
+                context.read<SessionProvider>().connectToSession(
+                  _sessionId!,
+                  skipPermissions: context.read<SettingsProvider>().skipPermissions,
+                );
+              },
+            ),
+        ],
       ),
       body: SafeArea(
         child: Column(
