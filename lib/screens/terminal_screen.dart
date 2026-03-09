@@ -30,6 +30,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   late bool _isConnecting;
   late final ConnectionProvider _connectionProvider;
   bool _wasDisconnected = false;
+  bool _forceScrollToBottom = false;
   static const _inputAreaHeight = 100.0;
   final _terminalScrollController = ScrollController();
 
@@ -83,6 +84,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       _wasDisconnected = true;
     } else if (_wasDisconnected && _sessionId != null && mounted) {
       _wasDisconnected = false;
+      _forceScrollToBottom = false;
       setState(() => _isConnecting = true);
       context.read<SessionProvider>().connectToSession(
         _sessionId!,
@@ -114,13 +116,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
         _terminal.write(output.output);
       }
     } else if (type == 'session_connect_response') {
-      // Server has finished setting up the session (history sent, PTY attached).
       if (_isConnecting && mounted) {
+        _forceScrollToBottom = true;
         setState(() => _isConnecting = false);
-        // Explicitly jump to bottom after overlay disappears — also resets
-        // xterm's internal _stickToBottom flag to true.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _terminalScrollController.hasClients) {
+            _forceScrollToBottom = false;
             _terminalScrollController.jumpTo(
               _terminalScrollController.position.maxScrollExtent,
             );
@@ -134,8 +135,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void _onTerminalUpdate() {
     if (!mounted || !_terminalScrollController.hasClients) return;
     final pos = _terminalScrollController.position;
-    // Only follow output if the user is within one viewport of the bottom.
-    if (pos.pixels >= pos.maxScrollExtent - pos.viewportDimension) {
+    // Follow output if at bottom, or if forced after session_connect_response
+    // (pos.pixels is stale until the pending jumpTo fires).
+    if (_forceScrollToBottom || pos.pixels >= pos.maxScrollExtent - pos.viewportDimension) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _terminalScrollController.hasClients) {
           _terminalScrollController.jumpTo(
