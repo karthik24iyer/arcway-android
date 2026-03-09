@@ -36,11 +36,12 @@ class _SessionListScreenState extends State<SessionListScreen> {
 
   void _connectToSession(String sessionId) {
     final settings = context.read<SettingsProvider>();
-    context.read<SessionProvider>().connectToSession(
-      sessionId,
-      skipPermissions: settings.skipPermissions,
-    );
-    Navigator.of(context).pushNamed('/terminal');
+    final provider = context.read<SessionProvider>();
+    provider.connectToSession(sessionId, skipPermissions: settings.skipPermissions);
+    // Reload session list when user navigates back from terminal
+    Navigator.of(context).pushNamed('/terminal').then((_) {
+      if (mounted) provider.loadSessions();
+    });
   }
 
   void _showTerminateSheet(SessionInfo session) {
@@ -109,6 +110,56 @@ class _SessionListScreenState extends State<SessionListScreen> {
     }
   }
 
+  // Confirmation dialog before logout with red Yes button
+  void _showLogoutConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF44475A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Logout?',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.onError,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _logout();
+                  },
+                  child: const Text('Yes', textAlign: TextAlign.center),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   String _relativeTime(String isoString) {
     if (isoString.isEmpty) return '';
     try {
@@ -129,10 +180,15 @@ class _SessionListScreenState extends State<SessionListScreen> {
     final connectionProvider = context.watch<ConnectionProvider>();
     final sessions = sessionProvider.sessions;
 
-    if (_isCreating && sessionProvider.currentSessionId != null && !sessionProvider.isLoading) {
+    if (_isCreating && sessionProvider.sessionCreatedId != null) {
       _isCreating = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).pushNamed('/terminal');
+        final provider = context.read<SessionProvider>();
+        provider.clearSessionCreatedId();
+        if (!mounted) return;
+        Navigator.of(context).pushNamed('/terminal').then((_) {
+          if (mounted) provider.loadSessions();
+        });
       });
     }
 
@@ -147,7 +203,7 @@ class _SessionListScreenState extends State<SessionListScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: _logout,
+            onPressed: _showLogoutConfirmDialog,
           ),
         ],
       ),
@@ -229,16 +285,14 @@ class _SessionListScreenState extends State<SessionListScreen> {
       SessionStatus.idle => const Color(0xFFFFB86C),
       SessionStatus.crashed => const Color(0xFFFF5555),
     };
-    final statusLabel = switch (session.status) {
-      SessionStatus.active => 'Active',
-      SessionStatus.idle => 'Idle',
-      SessionStatus.crashed => 'Crashed',
-    };
     final displayName = session.name.isNotEmpty ? session.name : session.id;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: statusColor, width: 2), // colored border replaces status text badge
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: () => _connectToSession(session.id),
@@ -247,15 +301,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,22 +337,14 @@ class _SessionListScreenState extends State<SessionListScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
+              // Stop button only shown for active sessions
+              if (session.status == SessionStatus.active)
+                IconButton(
+                  icon: const Icon(Icons.stop_circle_outlined, color: Color(0xFF6272A4)),
+                  onPressed: () => context.read<SessionProvider>().terminateSession(session.id),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -335,6 +372,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
 
   @override
   void dispose() {
+    widget.settings.setDefaultWorkingDirectory(_dirController.text);
     _dirController.dispose();
     super.dispose();
   }

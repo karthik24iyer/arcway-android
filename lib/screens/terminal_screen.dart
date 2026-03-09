@@ -212,48 +212,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
           builder: (context, sessionProvider, _) {
             final idx = _sessionId != null ? sessionProvider.sessions.indexWhere((s) => s.id == _sessionId) : -1;
             final session = idx >= 0 ? sessionProvider.sessions[idx] : null;
-            final statusColor = switch (session?.status) {
-              SessionStatus.active => const Color(0xFF50FA7B),
-              SessionStatus.idle => const Color(0xFFFFB86C),
-              SessionStatus.crashed => const Color(0xFFFF5555),
-              null => const Color(0xFF6272A4),
-            };
-            final statusLabel = switch (session?.status) {
-              SessionStatus.active => 'Active',
-              SessionStatus.idle => 'Idle',
-              SessionStatus.crashed => 'Crashed',
-              null => 'Unknown',
-            };
             final titleText = session != null && session.name.isNotEmpty
                 ? session.name
                 : _sessionId?.substring(0, 8) ?? 'Terminal';
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    titleText,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 15),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    statusLabel,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
+            // Removed status badge — all open chats are active
+            return Text(
+              titleText,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 15),
             );
           },
         ),

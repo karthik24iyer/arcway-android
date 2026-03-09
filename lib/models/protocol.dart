@@ -369,12 +369,14 @@ class SessionCreateRequest extends BaseMessage {
 class SessionCreateResponse extends BaseMessage {
   final bool success;
   final SessionInfo? session;
+  final String? sessionId;
   final String? error;
   final String? message;
 
   SessionCreateResponse({
     required this.success,
     this.session,
+    this.sessionId,
     this.error,
     this.message,
     required super.timestamp,
@@ -388,6 +390,7 @@ class SessionCreateResponse extends BaseMessage {
       'data': {
         'success': success,
         if (session != null) 'session': session!.toJson(),
+        if (sessionId != null) 'session_id': sessionId,
         if (error != null) 'error': error,
         if (message != null) 'message': message,
       },
@@ -403,6 +406,7 @@ class SessionCreateResponse extends BaseMessage {
       session: data['session'] != null
           ? SessionInfo.fromJson(data['session'] as Map<String, dynamic>)
           : null,
+      sessionId: data['session_id'] as String?,
       error: data['error'] as String?,
       message: data['message'] as String?,
       timestamp: json['timestamp'] as String? ?? '',
