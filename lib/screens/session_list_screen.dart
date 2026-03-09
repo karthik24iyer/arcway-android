@@ -16,7 +16,6 @@ class SessionListScreen extends StatefulWidget {
 
 class _SessionListScreenState extends State<SessionListScreen> {
   bool _isCreating = false;
-  String? _connectingSessionId;
 
   @override
   void initState() {
@@ -36,10 +35,13 @@ class _SessionListScreenState extends State<SessionListScreen> {
   }
 
   void _connectToSession(String sessionId) {
-    if (_connectingSessionId != null) return; // already connecting
-    setState(() => _connectingSessionId = sessionId);
     final settings = context.read<SettingsProvider>();
-    context.read<SessionProvider>().connectToSession(sessionId, skipPermissions: settings.skipPermissions);
+    final provider = context.read<SessionProvider>();
+    provider.connectToSession(sessionId, skipPermissions: settings.skipPermissions);
+    // Reload session list when user navigates back from terminal
+    Navigator.of(context).pushNamed('/terminal').then((_) {
+      if (mounted) provider.loadSessions();
+    });
   }
 
   void _showTerminateSheet(SessionInfo session) {
@@ -190,20 +192,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
       });
     }
 
-    if (_connectingSessionId != null && sessionProvider.isSessionConnected) {
-      _connectingSessionId = null;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        Navigator.of(context).pushNamed('/terminal').then((_) {
-          if (mounted) context.read<SessionProvider>().loadSessions();
-        });
-      });
-    }
-
-    if (_connectingSessionId != null && sessionProvider.error != null) {
-      _connectingSessionId = null;
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Arcway'),
@@ -349,13 +337,8 @@ class _SessionListScreenState extends State<SessionListScreen> {
                   ],
                 ),
               ),
-              if (_connectingSessionId == session.id)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFBD93F9)),
-                )
-              else if (session.status == SessionStatus.active)
+              // Stop button only shown for active sessions
+              if (session.status == SessionStatus.active)
                 IconButton(
                   icon: const Icon(Icons.stop_circle_outlined, color: Color(0xFF6272A4)),
                   onPressed: () => context.read<SessionProvider>().terminateSession(session.id),
