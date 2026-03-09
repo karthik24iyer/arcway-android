@@ -7,6 +7,7 @@ import 'package:xterm/xterm.dart';
 import '../models/protocol.dart';
 import '../providers/connection_provider.dart';
 import '../providers/session_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/websocket_service.dart';
 
 class TerminalScreen extends StatefulWidget {
@@ -27,6 +28,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   Timer? _resizeDebounce;
   // True until session_connect_response arrives; gates the loading overlay.
   late bool _isConnecting;
+  late final ConnectionProvider _connectionProvider;
+  bool _wasDisconnected = false;
   static const _inputAreaHeight = 100.0;
   final _terminalScrollController = ScrollController();
 
@@ -67,9 +70,25 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _sessionId = sessionProvider.currentSessionId;
     _isConnecting = !sessionProvider.isSessionConnected;
 
+    _connectionProvider = context.read<ConnectionProvider>();
+    _connectionProvider.addListener(_onConnectionChange);
+
     _terminal.onResize = _onTerminalResize;
     _terminal.addListener(_onTerminalUpdate);
     _outputSub = _ws.messages.listen(_onServerMessage);
+  }
+
+  void _onConnectionChange() {
+    if (!_connectionProvider.isConnected) {
+      _wasDisconnected = true;
+    } else if (_wasDisconnected && _sessionId != null && mounted) {
+      _wasDisconnected = false;
+      setState(() => _isConnecting = true);
+      context.read<SessionProvider>().connectToSession(
+        _sessionId!,
+        skipPermissions: context.read<SettingsProvider>().skipPermissions,
+      );
+    }
   }
 
   void _onTerminalResize(int width, int height, int pixelWidth, int pixelHeight) {
@@ -107,13 +126,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
             );
           }
         });
-      }
-    } else if (type == 'status_update') {
-      if (_isConnecting && mounted) {
-        final status = msg['data']?['status'] as String?;
-        if (status == 'idle' || status == 'crashed') {
-          setState(() => _isConnecting = false);
-        }
       }
     }
   }
@@ -174,6 +186,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   void dispose() {
+    _connectionProvider.removeListener(_onConnectionChange);
     _resizeDebounce?.cancel();
     _outputSub?.cancel();
     _terminal.removeListener(_onTerminalUpdate);
