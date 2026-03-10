@@ -30,8 +30,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
   late bool _isConnecting;
   late final ConnectionProvider _connectionProvider;
   bool _wasDisconnected = false;
-  bool _forceScrollToBottom = false;
-  Timer? _forceScrollFallback;
   static const _inputAreaHeight = 100.0;
   final _terminalScrollController = ScrollController();
 
@@ -85,8 +83,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
       _wasDisconnected = true;
     } else if (_wasDisconnected && _sessionId != null && mounted) {
       _wasDisconnected = false;
-      _forceScrollFallback?.cancel();
-      _forceScrollToBottom = false;
       setState(() => _isConnecting = true);
       context.read<SessionProvider>().connectToSession(
         _sessionId!,
@@ -118,12 +114,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
         _terminal.write(output.output);
       }
     } else if (type == 'session_connect_response') {
+      // Server has finished setting up the session (history sent, PTY attached).
       if (_isConnecting && mounted) {
-        _forceScrollToBottom = true;
-        _forceScrollFallback?.cancel();
-        // Fallback: clear force-scroll after 8s in case status_update never arrives.
-        _forceScrollFallback = Timer(const Duration(seconds: 8), _clearForceScroll);
         setState(() => _isConnecting = false);
+        // Explicitly jump to bottom after overlay disappears — also resets
+        // xterm's internal _stickToBottom flag to true.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _terminalScrollController.hasClients) {
             _terminalScrollController.jumpTo(
@@ -132,34 +127,15 @@ class _TerminalScreenState extends State<TerminalScreen> {
           }
         });
       }
-    } else if (type == 'status_update') {
-      // Claude went idle — rendering is done, stop force-scrolling.
-      final status = msg['data']?['status'] as String?;
-      if (_forceScrollToBottom && (status == 'idle' || status == 'crashed')) {
-        _clearForceScroll();
-      }
     }
-  }
-
-  void _clearForceScroll() {
-    _forceScrollFallback?.cancel();
-    _forceScrollToBottom = false;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _terminalScrollController.hasClients) {
-        _terminalScrollController.jumpTo(
-          _terminalScrollController.position.maxScrollExtent,
-        );
-      }
-    });
   }
 
   // Manage scroll manually to work around xterm v4 stickToBottom race condition.
   void _onTerminalUpdate() {
     if (!mounted || !_terminalScrollController.hasClients) return;
     final pos = _terminalScrollController.position;
-    // Follow output if at bottom, or if forced after session_connect_response
-    // (pos.pixels is stale until the pending jumpTo fires).
-    if (_forceScrollToBottom || pos.pixels >= pos.maxScrollExtent - pos.viewportDimension) {
+    // Only follow output if the user is within one viewport of the bottom.
+    if (pos.pixels >= pos.maxScrollExtent - pos.viewportDimension) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _terminalScrollController.hasClients) {
           _terminalScrollController.jumpTo(
@@ -211,7 +187,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
   @override
   void dispose() {
     _connectionProvider.removeListener(_onConnectionChange);
-    _forceScrollFallback?.cancel();
     _resizeDebounce?.cancel();
     _outputSub?.cancel();
     _terminal.removeListener(_onTerminalUpdate);
