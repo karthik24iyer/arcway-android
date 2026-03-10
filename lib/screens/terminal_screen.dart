@@ -232,7 +232,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: () {
-                _forceScrollToBottom = false;
                 setState(() => _isConnecting = true);
                 context.read<SessionProvider>().connectToSession(
                   _sessionId!,
