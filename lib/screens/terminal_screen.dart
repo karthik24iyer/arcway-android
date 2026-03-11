@@ -17,6 +17,23 @@ class TerminalScreen extends StatefulWidget {
   State<TerminalScreen> createState() => _TerminalScreenState();
 }
 
+abstract final class _TerminalPalette {
+  // Light chrome
+  static const lightBg = Color(0xFFFDF6E3); // matches Solarized bg — no seam
+  static const lightSurface = Color(0xFFEEE8D5);
+  static const lightBorder = Color(0xFFDDDDDD);
+  static const lightText = Color(0xFF212121);
+  static const lightHint = Color(0xFF9E9E9E);
+  static const lightAccent = Color(0xFF7C4DFF);
+  // Dark chrome (Dracula-matched)
+  static const darkBg = Color(0xFF21222C);
+  static const darkSurface = Color(0xFF282A36);
+  static const darkBorder = Color(0xFF44475A);
+  static const darkText = Color(0xFFF8F8F2);
+  static const darkHint = Color(0xFF6272A4);
+  static const darkAccent = Color(0xFFBD93F9);
+}
+
 class _TerminalScreenState extends State<TerminalScreen> {
   late final Terminal _terminal;
   late final WebSocketService _ws;
@@ -57,6 +74,32 @@ class _TerminalScreenState extends State<TerminalScreen> {
     searchHitBackground: Color(0xFFFFB86C),
     searchHitBackgroundCurrent: Color(0xFFFF79C6),
     searchHitForeground: Color(0xFF282A36),
+  );
+
+  static const _solarizedLightTheme = TerminalTheme(
+    cursor: Color(0xFF657B83),
+    selection: Color(0xFFEEE8D5),
+    foreground: Color(0xFF657B83),
+    background: Color(0xFFFDF6E3),
+    black: Color(0xFF073642),
+    red: Color(0xFFDC322F),
+    green: Color(0xFF859900),
+    yellow: Color(0xFFB58900),
+    blue: Color(0xFF268BD2),
+    magenta: Color(0xFFD33682),
+    cyan: Color(0xFF2AA198),
+    white: Color(0xFFEEE8D5),
+    brightBlack: Color(0xFF002B36),
+    brightRed: Color(0xFFCB4B16),
+    brightGreen: Color(0xFF586E75),
+    brightYellow: Color(0xFF657B83),
+    brightBlue: Color(0xFF839496),
+    brightMagenta: Color(0xFF6C71C4),
+    brightCyan: Color(0xFF93A1A1),
+    brightWhite: Color(0xFFFDF6E3),
+    searchHitBackground: Color(0xFFB58900),
+    searchHitBackgroundCurrent: Color(0xFFD33682),
+    searchHitForeground: Color(0xFFFDF6E3),
   );
 
   @override
@@ -252,15 +295,15 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   return Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    color: const Color(0xFFFF5555),
+                    color: Theme.of(context).colorScheme.error,
                     child: Row(
                       children: [
-                        const Icon(Icons.cloud_off, color: Color(0xFFF8F8F2), size: 16),
+                        Icon(Icons.cloud_off, color: Theme.of(context).colorScheme.onError, size: 16),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             'Connection lost',
-                            style: TextStyle(color: Color(0xFFF8F8F2), fontSize: 13),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 13),
                           ),
                         ),
                         TextButton(
@@ -270,9 +313,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: const Text(
+                          child: Text(
                             'BACK',
-                            style: TextStyle(color: Color(0xFFF8F8F2), fontSize: 12),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 12),
                           ),
                         ),
                       ],
@@ -297,7 +340,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
                         canRequestFocus: false,
                         child: TerminalView(
                           _terminal,
-                          theme: _draculaTheme,
+                          theme: context.watch<SettingsProvider>().isDarkMode
+                              ? _draculaTheme
+                              : _solarizedLightTheme,
                           scrollController: _terminalScrollController,
                           textStyle: const TerminalStyle(
                             fontFamily: 'JetBrainsMono',
@@ -334,10 +379,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   Widget _buildVirtualKeyboard() {
+    final isDark = context.watch<SettingsProvider>().isDarkMode;
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF282A36),
-        border: Border(top: BorderSide(color: Color(0xFF6272A4))),
+      decoration: BoxDecoration(
+        color: isDark ? _TerminalPalette.darkSurface : _TerminalPalette.lightBg,
+        border: Border(top: BorderSide(color: isDark ? _TerminalPalette.darkBorder : _TerminalPalette.lightBorder)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -357,8 +403,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   Widget _buildInputBar() {
+    final isDark = context.watch<SettingsProvider>().isDarkMode;
     return Container(
-      color: const Color(0xFF21222C),
+      color: isDark ? _TerminalPalette.darkBg : _TerminalPalette.lightBg,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Row(
         children: [
@@ -370,28 +417,28 @@ class _TerminalScreenState extends State<TerminalScreen> {
               maxLines: 5,
               keyboardType: TextInputType.multiline,
               textInputAction: TextInputAction.newline,
-              style: const TextStyle(
-                color: Color(0xFFF8F8F2),
+              style: TextStyle(
+                color: isDark ? _TerminalPalette.darkText : _TerminalPalette.lightText,
                 fontSize: 13,
                 fontFamily: 'JetBrainsMono',
               ),
               decoration: InputDecoration(
                 hintText: 'Type command…',
-                hintStyle: const TextStyle(color: Color(0xFF6272A4), fontSize: 13),
+                hintStyle: TextStyle(color: isDark ? _TerminalPalette.darkHint : _TerminalPalette.lightHint, fontSize: 13),
                 filled: true,
-                fillColor: const Color(0xFF282A36),
+                fillColor: isDark ? _TerminalPalette.darkSurface : _TerminalPalette.lightSurface,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: Color(0xFF44475A)),
+                  borderSide: BorderSide(color: isDark ? _TerminalPalette.darkBorder : _TerminalPalette.lightBorder),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: Color(0xFF44475A)),
+                  borderSide: BorderSide(color: isDark ? _TerminalPalette.darkBorder : _TerminalPalette.lightBorder),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: Color(0xFFBD93F9)),
+                  borderSide: BorderSide(color: isDark ? _TerminalPalette.darkAccent : _TerminalPalette.lightAccent),
                 ),
               ),
             ),
@@ -400,8 +447,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
           ElevatedButton(
             onPressed: _sendLine,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFBD93F9),
-              foregroundColor: const Color(0xFF282A36),
+              backgroundColor: isDark ? _TerminalPalette.darkAccent : _TerminalPalette.lightAccent,
+              foregroundColor: isDark ? _TerminalPalette.darkSurface : Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -415,19 +462,20 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   Widget _buildKey(String label, VoidCallback onTap, {bool active = false, double horizontalPadding = 8}) {
+    final isDark = context.watch<SettingsProvider>().isDarkMode;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(4),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFFBD93F9) : const Color(0xFF44475A),
+          color: active ? (isDark ? _TerminalPalette.darkAccent : _TerminalPalette.lightAccent) : (isDark ? _TerminalPalette.darkBorder : _TerminalPalette.lightBorder),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: active ? const Color(0xFF282A36) : const Color(0xFFF8F8F2),
+            color: active ? (isDark ? _TerminalPalette.darkSurface : Colors.white) : (isDark ? _TerminalPalette.darkText : _TerminalPalette.lightText),
             fontSize: 12,
             fontFamily: 'JetBrainsMono',
           ),
@@ -465,8 +513,16 @@ class _SessionLoadingOverlayState extends State<_SessionLoadingOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.watch<SettingsProvider>().isDarkMode;
+    final bg = isDark ? _TerminalPalette.darkSurface : _TerminalPalette.lightBg;
+    final accent = isDark ? _TerminalPalette.darkAccent : _TerminalPalette.lightAccent;
+    final spinnerTrack = isDark ? _TerminalPalette.darkBorder : _TerminalPalette.lightBorder;
+    final iconBg = isDark ? _TerminalPalette.darkBorder : _TerminalPalette.lightBorder;
+    final primaryText = isDark ? _TerminalPalette.darkText : _TerminalPalette.lightText;
+    final secondaryText = isDark ? _TerminalPalette.darkHint : _TerminalPalette.lightHint;
+
     return Container(
-      color: const Color(0xFF282A36),
+      color: bg,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -483,28 +539,21 @@ class _SessionLoadingOverlayState extends State<_SessionLoadingOverlay>
                       value: null,
                       strokeWidth: 3,
                       valueColor: AlwaysStoppedAnimation(
-                        Color.lerp(
-                          const Color(0xFFBD93F9),
-                          const Color(0xFF8BE9FD),
-                          _controller.value,
-                        )!,
+                        Color.lerp(accent, isDark ? const Color(0xFF8BE9FD) : const Color(0xFF26C6DA), _controller.value)!,
                       ),
-                      backgroundColor: const Color(0xFF44475A),
+                      backgroundColor: spinnerTrack,
                     ),
                   ),
                 ),
                 Container(
                   width: 52,
                   height: 52,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFF44475A),
-                  ),
-                  child: const Center(
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: iconBg),
+                  child: Center(
                     child: Text(
                       '>_',
                       style: TextStyle(
-                        color: Color(0xFFBD93F9),
+                        color: accent,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         fontFamily: 'JetBrainsMono',
@@ -522,22 +571,14 @@ class _SessionLoadingOverlayState extends State<_SessionLoadingOverlay>
                 final pad = '   '.substring(dots.length);
                 return Text(
                   'Starting session$dots$pad',
-                  style: const TextStyle(
-                    color: Color(0xFFF8F8F2),
-                    fontSize: 14,
-                    fontFamily: 'JetBrainsMono',
-                  ),
+                  style: TextStyle(color: primaryText, fontSize: 14, fontFamily: 'JetBrainsMono'),
                 );
               },
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'loading history…',
-              style: TextStyle(
-                color: Color(0xFF6272A4),
-                fontSize: 12,
-                fontFamily: 'JetBrainsMono',
-              ),
+              style: TextStyle(color: secondaryText, fontSize: 12, fontFamily: 'JetBrainsMono'),
             ),
           ],
         ),

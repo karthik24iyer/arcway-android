@@ -46,7 +46,6 @@ void main() {
           wsService: ws,
           authService: auth,
           settingsProvider: SettingsProvider(),
-          initialRoute: '/login',
         ),
         isA<StatefulWidget>(),
       );

@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/connection_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/status_dot.dart';
 
 class SessionListScreen extends StatefulWidget {
   const SessionListScreen({super.key});
@@ -29,16 +30,15 @@ class _SessionListScreenState extends State<SessionListScreen> {
     _isCreating = true;
     final settings = context.read<SettingsProvider>();
     context.read<SessionProvider>().createSession(
-      settings.defaultWorkingDirectory,
-      skipPermissions: settings.skipPermissions,
-    );
+          settings.defaultWorkingDirectory,
+          skipPermissions: settings.skipPermissions,
+        );
   }
 
   void _connectToSession(String sessionId) {
     final settings = context.read<SettingsProvider>();
     final provider = context.read<SessionProvider>();
     provider.connectToSession(sessionId, skipPermissions: settings.skipPermissions);
-    // Reload session list when user navigates back from terminal
     Navigator.of(context).pushNamed('/terminal').then((_) {
       if (mounted) provider.loadSessions();
     });
@@ -46,34 +46,30 @@ class _SessionListScreenState extends State<SessionListScreen> {
 
   void _showTerminateSheet(SessionInfo session) {
     final label = session.name.isNotEmpty ? session.name : session.id;
-
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF44475A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
               ListTile(
-                leading: Icon(
-                  Icons.stop_circle_outlined,
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.stop_circle_outlined,
+                    color: Theme.of(context).colorScheme.error),
                 title: Text(
                   'Terminate Session',
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -95,10 +91,6 @@ class _SessionListScreenState extends State<SessionListScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF44475A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
       builder: (ctx) => _SettingsSheet(settings: settings),
     );
   }
@@ -110,25 +102,20 @@ class _SessionListScreenState extends State<SessionListScreen> {
     }
   }
 
-  // Confirmation dialog before logout with red Yes button
   void _showLogoutConfirmDialog() {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF44475A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
                   const Expanded(
-                    child: Text(
-                      'Logout?',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    child: Text('Logout?',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -138,7 +125,7 @@ class _SessionListScreenState extends State<SessionListScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -150,7 +137,7 @@ class _SessionListScreenState extends State<SessionListScreen> {
                     Navigator.pop(ctx);
                     _logout();
                   },
-                  child: const Text('Yes', textAlign: TextAlign.center),
+                  child: const Text('Yes'),
                 ),
               ),
             ],
@@ -194,16 +181,30 @@ class _SessionListScreenState extends State<SessionListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Arcway'),
-        automaticallyImplyLeading: false,
+        title: const Text('Agent Chats'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pushReplacementNamed('/devices'),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings_outlined),
             onPressed: _showSettingsSheet,
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             onPressed: _showLogoutConfirmDialog,
+          ),
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) => IconButton(
+              icon: Icon(
+                settings.isDarkMode
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded,
+              ),
+              tooltip: settings.isDarkMode ? 'Switch to light' : 'Switch to dark',
+              onPressed: settings.toggleTheme,
+            ),
           ),
         ],
       ),
@@ -212,26 +213,38 @@ class _SessionListScreenState extends State<SessionListScreen> {
           if (!connectionProvider.isConnected)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
               color: Theme.of(context).colorScheme.error,
-              child: Text(
-                'Disconnected from server',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onError,
-                  fontSize: 13,
-                ),
-                textAlign: TextAlign.center,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off_rounded,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.onError),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Disconnected from server',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onError,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
 
           if (sessionProvider.error != null)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: const Color(0xFFFFB86C),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              color: Theme.of(context).colorScheme.tertiary,
               child: Text(
                 sessionProvider.error!,
-                style: const TextStyle(color: Color(0xFF282A36), fontSize: 13),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onTertiary,
+                  fontSize: 12,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -249,24 +262,55 @@ class _SessionListScreenState extends State<SessionListScreen> {
                         ? ListView(
                             children: [
                               SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.4,
+                                height: MediaQuery.of(context).size.height * 0.45,
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.terminal, size: 48, color: Theme.of(context).dividerColor),
-                                    const SizedBox(height: 12),
-                                    Text('No active sessions', style: TextStyle(color: Theme.of(context).dividerColor, fontSize: 16)),
+                                    Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(18),
+                                      ),
+                                      child: Icon(
+                                        Icons.terminal_rounded,
+                                        size: 34,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No active sessions',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                     const SizedBox(height: 4),
-                                    Text('Tap + to create your first session', style: TextStyle(color: Theme.of(context).dividerColor, fontSize: 13)),
+                                    Text(
+                                      'Tap + to start a new session',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant
+                                            .withValues(alpha: 0.7),
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                             ],
                           )
                         : ListView.builder(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 80),
                             itemCount: sessions.length,
-                            itemBuilder: (context, index) => _buildSessionCard(sessions[index]),
+                            itemBuilder: (context, index) =>
+                                _buildSessionCard(sessions[index]),
                           ),
                   ),
           ),
@@ -274,78 +318,108 @@ class _SessionListScreenState extends State<SessionListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _createSession,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }
 
   Widget _buildSessionCard(SessionInfo session) {
+    final isActive = session.status == SessionStatus.active;
+
     final statusColor = switch (session.status) {
-      SessionStatus.active => const Color(0xFF50FA7B),
+      SessionStatus.active => const Color(0xFF21B568),
       SessionStatus.idle => const Color(0xFFFFB86C),
-      SessionStatus.crashed => const Color(0xFFFF5555),
+      SessionStatus.crashed => const Color(0xFFF07178),
     };
+
     final displayName = session.name.isNotEmpty ? session.name : session.id;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: statusColor, width: 2), // colored border replaces status text badge
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () => _connectToSession(session.id),
-        onLongPress: () => _showTerminateSheet(session),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '> $displayName',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      session.workingDirectory,
-                      style: TextStyle(
-                        color: Theme.of(context).dividerColor,
-                        fontSize: 12,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (session.lastActivity.isNotEmpty) ...[
-                      const SizedBox(height: 2),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: isActive
+                ? statusColor.withValues(alpha: 0.5)
+                : Theme.of(context).dividerColor,
+            width: 1,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _connectToSession(session.id),
+          onLongPress: () => _showTerminateSheet(session),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                StatusDot(color: statusColor, pulse: isActive),
+                const SizedBox(width: 14),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        _relativeTime(session.lastActivity),
-                        style: TextStyle(
-                          color: Theme.of(context).dividerColor,
-                          fontSize: 11,
+                        displayName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.folder_outlined,
+                            size: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              session.workingDirectory,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (session.lastActivity.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _relativeTime(session.lastActivity),
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant
+                                .withValues(alpha: 0.7),
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              // Stop button only shown for active sessions
-              if (session.status == SessionStatus.active)
-                IconButton(
-                  icon: const Icon(Icons.stop_circle_outlined, color: Color(0xFF6272A4)),
-                  onPressed: () => context.read<SessionProvider>().terminateSession(session.id),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-            ],
+
+                if (isActive)
+                  IconButton(
+                    icon: const Icon(Icons.stop_circle_outlined, size: 20),
+                    color: Theme.of(context).dividerColor,
+                    onPressed: () =>
+                        context.read<SessionProvider>().terminateSession(session.id),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -367,7 +441,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   @override
   void initState() {
     super.initState();
-    _dirController = TextEditingController(text: widget.settings.defaultWorkingDirectory);
+    _dirController =
+        TextEditingController(text: widget.settings.defaultWorkingDirectory);
   }
 
   @override
@@ -381,7 +456,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        16, 20, 16, MediaQuery.of(context).viewInsets.bottom + 24,
+        20, 4, 20, MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: ListenableBuilder(
         listenable: widget.settings,
@@ -391,9 +466,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           children: [
             const Text(
               'Settings',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             TextFormField(
               controller: _dirController,
               decoration: const InputDecoration(
