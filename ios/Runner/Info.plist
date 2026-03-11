@@ -15,7 +15,7 @@
 	<key>CFBundleName</key>
 	<string>Arcway</string>
 	<key>GIDClientID</key>
-	<string>REPLACE_WITH_IOS_CLIENT_ID</string>
+	<string>260109272007-4lat0ms48rhhr8h73d71ophja0bi81fs.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -23,7 +23,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>REPLACE_WITH_REVERSED_IOS_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.260109272007-4lat0ms48rhhr8h73d71ophja0bi81fs</string>
 			</array>
 		</dict>
 	</array>

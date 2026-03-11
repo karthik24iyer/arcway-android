@@ -18,6 +18,9 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _googleSignIn = GoogleSignIn(
+    clientId: defaultTargetPlatform == TargetPlatform.iOS
+        ? '260109272007-4lat0ms48rhhr8h73d71ophja0bi81fs.apps.googleusercontent.com'
+        : null,
     serverClientId: '260109272007-6bqlpils04thtrp426reojome3hnlef2.apps.googleusercontent.com',
   );
 
