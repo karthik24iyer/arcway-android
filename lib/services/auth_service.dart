@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,7 +59,7 @@ class AuthService {
       username: username,
       password: password,
       clientInfo: ClientInfo(
-        platform: 'android',
+        platform: Platform.isIOS ? 'ios' : 'android',
         version: '0.1.0',
         deviceId: 'claude-remote-android',
       ),
