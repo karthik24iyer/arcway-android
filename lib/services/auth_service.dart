@@ -124,6 +124,46 @@ class AuthService {
     return false;
   }
 
+  Future<AuthResponse> loginWithApple(String identityToken) async {
+    final response = await http.post(
+      Uri.parse('$kRelayHttpUrl/auth/apple'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'identity_token': identityToken}),
+    );
+
+    if (response.statusCode != 200) {
+      return AuthResponse(
+        success: false,
+        message: 'Apple sign-in failed: ${response.statusCode}',
+        timestamp: DateTime.now().toIso8601String(),
+        id: 'apple-auth-error',
+      );
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final sessionToken = body['session_token'] as String?;
+    if (sessionToken == null) {
+      return AuthResponse(
+        success: false,
+        message: 'No session token in response',
+        timestamp: DateTime.now().toIso8601String(),
+        id: 'apple-auth-error',
+      );
+    }
+
+    _sessionToken = sessionToken;
+    _token = sessionToken;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keySessionToken, sessionToken);
+
+    return AuthResponse(
+      success: true,
+      token: sessionToken,
+      timestamp: DateTime.now().toIso8601String(),
+      id: 'apple-auth-ok',
+    );
+  }
+
   Future<AuthResponse> loginWithGoogle(String idToken) async {
     final response = await http.post(
       Uri.parse('$kRelayHttpUrl/auth/google'),

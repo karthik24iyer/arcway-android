@@ -42,6 +42,20 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> loginWithApple(String identityToken) async {
+    _setLoading();
+    try {
+      final response = await _authService.loginWithApple(identityToken);
+      _isLoading = false;
+      _error = response.success ? null : (response.message ?? response.error ?? 'Apple sign-in failed');
+      notifyListeners();
+      return response.success;
+    } catch (e) {
+      _handleError(e);
+      return false;
+    }
+  }
+
   Future<bool> loginWithGoogle(String idToken) async {
     _setLoading();
     try {
