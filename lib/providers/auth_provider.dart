@@ -16,66 +16,56 @@ class AuthProvider extends ChangeNotifier {
   UserInfo? get userInfo => _authService.userInfo;
   String? get token => _authService.token;
 
-  Future<bool> login(String username, String password, String serverUrl) async {
+  void _setLoading() {
     _isLoading = true;
     _error = null;
     notifyListeners();
+  }
 
+  void _handleError(dynamic e) {
+    _isLoading = false;
+    _error = e.toString();
+    notifyListeners();
+  }
+
+  Future<bool> login(String username, String password, String serverUrl) async {
+    _setLoading();
     try {
       final response = await _authService.login(username, password, serverUrl);
       _isLoading = false;
-
-      if (response.success) {
-        _error = null;
-      } else {
-        _error = response.message ?? response.error ?? 'Authentication failed';
-      }
-
+      _error = response.success ? null : (response.message ?? response.error ?? 'Authentication failed');
       notifyListeners();
       return response.success;
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _handleError(e);
       return false;
     }
   }
 
   Future<bool> loginWithGoogle(String idToken) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+    _setLoading();
     try {
       final response = await _authService.loginWithGoogle(idToken);
       _isLoading = false;
-      if (!response.success) {
-        _error = response.message ?? response.error ?? 'Google sign-in failed';
-      }
+      _error = response.success ? null : (response.message ?? response.error ?? 'Google sign-in failed');
       notifyListeners();
       return response.success;
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _handleError(e);
       return false;
     }
   }
 
   Future<List<Map<String, dynamic>>> fetchDevices() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+    _setLoading();
     try {
       final devices = await _authService.fetchDevices();
       _isLoading = false;
+      _error = null;
       notifyListeners();
       return devices;
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _handleError(e);
       return [];
     }
   }
@@ -85,18 +75,13 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> connectToDevice(String deviceId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+    _setLoading();
     try {
       await _authService.connectToDevice(deviceId);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _handleError(e);
       rethrow;
     }
   }

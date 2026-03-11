@@ -10,9 +10,11 @@ class SessionProvider extends ChangeNotifier {
   StreamSubscription? _subscription;
   List<SessionInfo> _sessions = [];
   String? _currentSessionId;
+  String? _sessionCreatedId;
   bool _isLoading = false;
   String? _error;
   bool _lastSkipPermissions = false;
+  bool _isSessionConnected = false;
 
   SessionProvider(this._ws) {
     _subscription = _ws.messages.listen(_onMessage);
@@ -20,14 +22,21 @@ class SessionProvider extends ChangeNotifier {
 
   List<SessionInfo> get sessions => List.unmodifiable(_sessions);
   String? get currentSessionId => _currentSessionId;
+  String? get sessionCreatedId => _sessionCreatedId;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get isSessionConnected => _isSessionConnected;
 
-  void loadSessions() {
+  void clearSessionCreatedId() { _sessionCreatedId = null; }
+
+  void _setLoading() {
     _isLoading = true;
     _error = null;
     notifyListeners();
+  }
 
+  void loadSessions() {
+    _setLoading();
     final msg = SessionListRequest(
       timestamp: DateTime.now().toIso8601String(),
       id: 'list-${DateTime.now().millisecondsSinceEpoch}',
@@ -36,11 +45,8 @@ class SessionProvider extends ChangeNotifier {
   }
 
   void createSession(String directory, {bool skipPermissions = false}) {
-    _isLoading = true;
-    _error = null;
     _lastSkipPermissions = skipPermissions;
-    notifyListeners();
-
+    _setLoading();
     final msg = SessionCreateRequest(
       directory: directory,
       skipPermissions: skipPermissions,
@@ -52,6 +58,7 @@ class SessionProvider extends ChangeNotifier {
 
   void connectToSession(String sessionId, {bool skipPermissions = false}) {
     _currentSessionId = sessionId;
+    _isSessionConnected = false;
     _error = null;
     notifyListeners();
 
@@ -66,6 +73,7 @@ class SessionProvider extends ChangeNotifier {
 
   void disconnectFromSession() {
     _currentSessionId = null;
+    _isSessionConnected = false;
     notifyListeners();
   }
 
@@ -94,20 +102,26 @@ class SessionProvider extends ChangeNotifier {
         _isLoading = false;
         if (response.success) {
           _error = null;
-          if (response.session != null) {
-            connectToSession(response.session!.id, skipPermissions: _lastSkipPermissions);
+          final newSessionId = response.session?.id ?? response.sessionId;
+          if (newSessionId != null) {
+            _sessionCreatedId = newSessionId;
+            connectToSession(newSessionId, skipPermissions: _lastSkipPermissions);
           } else {
             loadSessions();
           }
         } else {
           _error = response.message ?? 'Failed to create session';
-          notifyListeners();
         }
+        notifyListeners();
 
       case 'session_connect_response':
         final response = SessionConnectResponse.fromJson(msg);
-        if (!response.success) {
+        if (response.success) {
+          _isSessionConnected = true;
+          notifyListeners();
+        } else {
           _currentSessionId = null;
+          _isSessionConnected = false;
           _error = response.message ?? 'Failed to connect to session';
           notifyListeners();
         }
@@ -131,15 +145,10 @@ class SessionProvider extends ChangeNotifier {
         final update = StatusUpdate.fromJson(msg);
         final idx = _sessions.indexWhere((s) => s.id == update.sessionId);
         if (idx >= 0) {
-          _sessions[idx] = SessionInfo(
-            id: _sessions[idx].id,
-            name: _sessions[idx].name,
-            workingDirectory: _sessions[idx].workingDirectory,
-            created: _sessions[idx].created,
+          _sessions[idx] = _sessions[idx].copyWith(
             lastActivity: update.lastActivity,
             isActive: update.status == SessionStatus.active,
             status: update.status,
-            pid: _sessions[idx].pid,
           );
           notifyListeners();
         }

@@ -43,7 +43,6 @@ abstract class BaseMessage {
   }
 }
 
-// Welcome message (sent by backend on connection)
 class WelcomeMessage extends BaseMessage {
   final String message;
   final String? serverVersion;
@@ -79,7 +78,6 @@ class WelcomeMessage extends BaseMessage {
   }
 }
 
-// Authentication Types
 class AuthRequest extends BaseMessage {
   final String username;
   final String password;
@@ -217,7 +215,6 @@ class UserInfo {
   }
 }
 
-// Session Management Types
 enum SessionStatus { active, idle, crashed }
 
 class SessionInfo {
@@ -254,6 +251,29 @@ class SessionInfo {
     };
   }
 
+  SessionInfo copyWith({
+    String? id,
+    String? name,
+    String? workingDirectory,
+    String? created,
+    String? lastActivity,
+    bool? isActive,
+    SessionStatus? status,
+    int? pid,
+  }) {
+    return SessionInfo(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      workingDirectory: workingDirectory ?? this.workingDirectory,
+      created: created ?? this.created,
+      lastActivity: lastActivity ?? this.lastActivity,
+      isActive: isActive ?? this.isActive,
+      status: status ?? this.status,
+      pid: pid ?? this.pid,
+    );
+  }
+
+  // Server sends camelCase keys; some older responses use snake_case fallbacks.
   factory SessionInfo.fromJson(Map<String, dynamic> json) {
     return SessionInfo(
       id: (json['sessionId'] ?? json['id']) as String? ?? '',
@@ -349,12 +369,14 @@ class SessionCreateRequest extends BaseMessage {
 class SessionCreateResponse extends BaseMessage {
   final bool success;
   final SessionInfo? session;
+  final String? sessionId;
   final String? error;
   final String? message;
 
   SessionCreateResponse({
     required this.success,
     this.session,
+    this.sessionId,
     this.error,
     this.message,
     required super.timestamp,
@@ -368,6 +390,7 @@ class SessionCreateResponse extends BaseMessage {
       'data': {
         'success': success,
         if (session != null) 'session': session!.toJson(),
+        if (sessionId != null) 'session_id': sessionId,
         if (error != null) 'error': error,
         if (message != null) 'message': message,
       },
@@ -383,6 +406,7 @@ class SessionCreateResponse extends BaseMessage {
       session: data['session'] != null
           ? SessionInfo.fromJson(data['session'] as Map<String, dynamic>)
           : null,
+      sessionId: data['session_id'] as String?,
       error: data['error'] as String?,
       message: data['message'] as String?,
       timestamp: json['timestamp'] as String? ?? '',
@@ -465,7 +489,6 @@ class SessionConnectResponse extends BaseMessage {
   }
 }
 
-// Session Terminate Types (new)
 class SessionTerminateRequest extends BaseMessage {
   final String sessionId;
 
@@ -531,7 +554,6 @@ class SessionTerminateResponse extends BaseMessage {
   }
 }
 
-// Terminal I/O Types
 class TerminalSize {
   final int rows;
   final int cols;
@@ -686,7 +708,6 @@ class SpecialKeyInput extends BaseMessage {
   }
 }
 
-// Error Types
 enum ErrorCode {
   invalidCredentials,
   tokenExpired,
@@ -842,24 +863,6 @@ class ConnectionError extends BaseMessage {
       timestamp: json['timestamp'] as String? ?? '',
       id: json['id'] as String? ?? '',
     );
-  }
-}
-
-// Status Message Types
-class PingMessage extends BaseMessage {
-  PingMessage({
-    required super.timestamp,
-    required super.id,
-  }) : super(type: 'ping');
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      'data': {},
-      'timestamp': timestamp,
-      'id': id,
-    };
   }
 }
 

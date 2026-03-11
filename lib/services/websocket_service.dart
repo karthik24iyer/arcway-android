@@ -8,34 +8,16 @@ class WebSocketService {
   StreamSubscription? _subscription;
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   final _connectionStateController = StreamController<bool>.broadcast();
-  final _replayBuffer = <Map<String, dynamic>>[];
-  String? _serverUrl;
   bool _isConnected = false;
 
   Stream<Map<String, dynamic>> get messages => _messageController.stream;
 
-  Stream<Map<String, dynamic>> get messagesWithReplay {
-    final controller = StreamController<Map<String, dynamic>>();
-    for (final msg in List.of(_replayBuffer)) {
-      controller.add(msg);
-    }
-    final sub = _messageController.stream.listen(
-      controller.add,
-      onError: controller.addError,
-      onDone: controller.close,
-    );
-    controller.onCancel = () => sub.cancel();
-    return controller.stream;
-  }
-
   Stream<bool> get connectionState => _connectionStateController.stream;
   bool get isConnected => _isConnected;
-  String? get serverUrl => _serverUrl;
 
   Future<void> connect(String serverUrl) async {
     if (_isConnected) disconnect();
 
-    _serverUrl = serverUrl;
     try {
       _channel = WebSocketChannel.connect(Uri.parse(serverUrl));
       await _channel!.ready;
@@ -58,12 +40,11 @@ class WebSocketService {
     _subscription = null;
     _channel?.sink.close();
     _channel = null;
-    _replayBuffer.clear();
     _setConnected(false);
   }
 
   void sendMessage(Map<String, dynamic> msg) {
-    if (!_isConnected || _channel == null) return;
+    if (!_isConnected) return;
     _channel!.sink.add(jsonEncode(msg));
   }
 
@@ -72,8 +53,6 @@ class WebSocketService {
       final text = rawMessage is String ? rawMessage : utf8.decode(rawMessage as List<int>);
       final decoded = jsonDecode(text);
       if (decoded is Map<String, dynamic>) {
-        if (_replayBuffer.length >= 500) _replayBuffer.removeAt(0);
-        _replayBuffer.add(decoded);
         _messageController.add(decoded);
       }
     } catch (e) {

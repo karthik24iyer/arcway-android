@@ -20,7 +20,7 @@ class ConnectionProvider extends ChangeNotifier {
       notifyListeners();
       if (!connected && !_isReconnecting) {
         _reconnectTimer?.cancel();
-        _reconnectTimer = Timer(const Duration(seconds: 2), _reconnect);
+        _reconnectTimer = Timer(const Duration(seconds: 2), reconnect);
       }
     });
   }
@@ -36,8 +36,6 @@ class ConnectionProvider extends ChangeNotifier {
       _isReconnecting = false;
     }
   }
-
-  void _reconnect() => reconnect();
 
   @override
   void dispose() {
