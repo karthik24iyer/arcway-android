@@ -56,7 +56,15 @@ class SessionProvider extends ChangeNotifier {
     _ws.sendMessage(msg.toJson());
   }
 
-  void connectToSession(String sessionId, {bool skipPermissions = false}) {
+  void setCurrentSession(String sessionId, {bool skipPermissions = false}) {
+    _lastSkipPermissions = skipPermissions;
+    _currentSessionId = sessionId;
+    _isSessionConnected = false;
+    _error = null;
+    notifyListeners();
+  }
+
+  void connectToSession(String sessionId, {bool skipPermissions = false, int? cols, int? rows}) {
     _currentSessionId = sessionId;
     _isSessionConnected = false;
     _error = null;
@@ -65,6 +73,8 @@ class SessionProvider extends ChangeNotifier {
     final msg = SessionConnectRequest(
       sessionId: sessionId,
       skipPermissions: skipPermissions,
+      cols: cols,
+      rows: rows,
       timestamp: DateTime.now().toIso8601String(),
       id: 'connect-${DateTime.now().millisecondsSinceEpoch}',
     );
@@ -105,7 +115,7 @@ class SessionProvider extends ChangeNotifier {
           final newSessionId = response.session?.id ?? response.sessionId;
           if (newSessionId != null) {
             _sessionCreatedId = newSessionId;
-            connectToSession(newSessionId, skipPermissions: _lastSkipPermissions);
+            setCurrentSession(newSessionId, skipPermissions: _lastSkipPermissions);
           } else {
             loadSessions();
           }

@@ -43,6 +43,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   int _seqNum = 0;
   String? _sessionId;
   Timer? _resizeDebounce;
+  int _termCols = 0;
+  int _termRows = 0;
   // True until session_connect_response arrives; gates the loading overlay.
   late bool _isConnecting;
   late final ConnectionProvider _connectionProvider;
@@ -119,6 +121,18 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _terminal.onResize = _onTerminalResize;
     _terminal.addListener(_onTerminalUpdate);
     _outputSub = _ws.messages.listen(_onServerMessage);
+
+    if (_sessionId != null && !sessionProvider.isSessionConnected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _sessionId == null) return;
+        context.read<SessionProvider>().connectToSession(
+          _sessionId!,
+          cols: _termCols > 0 ? _termCols : null,
+          rows: _termRows > 0 ? _termRows : null,
+          skipPermissions: context.read<SettingsProvider>().skipPermissions,
+        );
+      });
+    }
   }
 
   void _onConnectionChange() {
@@ -129,12 +143,16 @@ class _TerminalScreenState extends State<TerminalScreen> {
       setState(() => _isConnecting = true);
       context.read<SessionProvider>().connectToSession(
         _sessionId!,
+        cols: _termCols > 0 ? _termCols : null,
+        rows: _termRows > 0 ? _termRows : null,
         skipPermissions: context.read<SettingsProvider>().skipPermissions,
       );
     }
   }
 
   void _onTerminalResize(int width, int height, int pixelWidth, int pixelHeight) {
+    _termCols = width;
+    _termRows = height;
     if (_sessionId == null) return;
     _resizeDebounce?.cancel();
     _resizeDebounce = Timer(const Duration(milliseconds: 300), () {
@@ -279,6 +297,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
                 setState(() => _isConnecting = true);
                 context.read<SessionProvider>().connectToSession(
                   _sessionId!,
+                  cols: _termCols > 0 ? _termCols : null,
+                  rows: _termRows > 0 ? _termRows : null,
                   skipPermissions: context.read<SettingsProvider>().skipPermissions,
                 );
               },

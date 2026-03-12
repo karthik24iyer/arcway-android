@@ -38,7 +38,7 @@ class _SessionListScreenState extends State<SessionListScreen> {
   void _connectToSession(String sessionId) {
     final settings = context.read<SettingsProvider>();
     final provider = context.read<SessionProvider>();
-    provider.connectToSession(sessionId, skipPermissions: settings.skipPermissions);
+    provider.setCurrentSession(sessionId, skipPermissions: settings.skipPermissions);
     Navigator.of(context).pushNamed('/terminal').then((_) {
       if (mounted) provider.loadSessions();
     });

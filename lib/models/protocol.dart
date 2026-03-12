@@ -418,10 +418,14 @@ class SessionCreateResponse extends BaseMessage {
 class SessionConnectRequest extends BaseMessage {
   final String sessionId;
   final bool skipPermissions;
+  final int? cols;
+  final int? rows;
 
   SessionConnectRequest({
     required this.sessionId,
     this.skipPermissions = false,
+    this.cols,
+    this.rows,
     required super.timestamp,
     required super.id,
   }) : super(type: 'session_connect_request');
@@ -433,6 +437,8 @@ class SessionConnectRequest extends BaseMessage {
       'data': {
         'session_id': sessionId,
         'skip_permissions': skipPermissions,
+        if (cols != null) 'cols': cols,
+        if (rows != null) 'rows': rows,
       },
       'timestamp': timestamp,
       'id': id,
