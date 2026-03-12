@@ -142,7 +142,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'No systems found',
+                'No devices found',
                 style: TextStyle(
                   color: Theme.of(context).dividerColor,
                   fontSize: 15,
@@ -258,7 +258,8 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Systems'),
+        centerTitle: false,
+        title: const Text('Devices'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded),

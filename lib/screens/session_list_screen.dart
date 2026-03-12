@@ -411,12 +411,12 @@ class _SessionListScreenState extends State<SessionListScreen> {
 
                 if (isActive)
                   IconButton(
-                    icon: const Icon(Icons.stop_circle_outlined, size: 20),
-                    color: Theme.of(context).dividerColor,
+                    icon: const Icon(Icons.stop_circle_outlined, size: 30),
+                    color: const Color(0xFFFF7276),
                     onPressed: () =>
                         context.read<SessionProvider>().terminateSession(session.id),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    constraints: const BoxConstraints(minWidth: 54, minHeight: 54),
                   ),
               ],
             ),

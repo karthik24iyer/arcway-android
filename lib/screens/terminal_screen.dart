@@ -249,6 +249,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       // Without this, the Column squishes TerminalView → onResize fires → tmux reflows content.
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
+        centerTitle: false,
         // isolate AppBar in Consumer so session status changes
         // don't trigger a full widget rebuild (and a TerminalView repaint).
         title: Consumer<SessionProvider>(

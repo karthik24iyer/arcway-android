@@ -1,8 +1,11 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
@@ -16,6 +19,9 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _googleSignIn = GoogleSignIn(
+    clientId: defaultTargetPlatform == TargetPlatform.iOS
+        ? '260109272007-4lat0ms48rhhr8h73d71ophja0bi81fs.apps.googleusercontent.com'
+        : null,
     serverClientId: '260109272007-6bqlpils04thtrp426reojome3hnlef2.apps.googleusercontent.com',
   );
 
@@ -55,6 +61,29 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
 
       final success = await authProvider.loginWithGoogle(idToken);
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.of(context).pushReplacementNamed('/devices');
+      }
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    final authProvider = context.read<AuthProvider>();
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [AppleIDAuthorizationScopes.email],
+      );
+      final identityToken = credential.identityToken;
+      if (identityToken == null) {
+        _showError('Failed to get Apple identity token');
+        return;
+      }
+
+      final success = await authProvider.loginWithApple(identityToken);
       if (!mounted) return;
 
       if (success) {
@@ -281,9 +310,41 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                           const Text('SIGNING IN...'),
                                         ],
                                       )
-                                    : const Text('Sign in with Google'),
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SvgPicture.asset(
+                                            'assets/images/google_logo.svg',
+                                            width: 20,
+                                            height: 20,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'Sign in with Google',
+                                            style: TextStyle(
+                                              fontSize: defaultTargetPlatform == TargetPlatform.iOS ? 16 : 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               ),
                             ),
+                            if (defaultTargetPlatform == TargetPlatform.iOS ||
+                                defaultTargetPlatform == TargetPlatform.macOS) ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: SignInWithAppleButton(
+                                  onPressed: isLoading ? () {} : _handleAppleSignIn,
+                                  style: isDark
+                                      ? SignInWithAppleButtonStyle.white
+                                      : SignInWithAppleButtonStyle.black,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
