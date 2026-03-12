@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -309,7 +310,24 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                           const Text('SIGNING IN...'),
                                         ],
                                       )
-                                    : const Text('Sign in with Google'),
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SvgPicture.asset(
+                                            'assets/images/google_logo.svg',
+                                            width: 20,
+                                            height: 20,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'Sign in with Google',
+                                            style: TextStyle(
+                                              fontSize: defaultTargetPlatform == TargetPlatform.iOS ? 16 : 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               ),
                             ),
                             if (defaultTargetPlatform == TargetPlatform.iOS ||
