@@ -195,8 +195,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void _onTerminalUpdate() {
     if (!mounted || !_terminalScrollController.hasClients) return;
     final pos = _terminalScrollController.position;
-    // Only follow output if the user is within one viewport of the bottom.
-    if (pos.pixels >= pos.maxScrollExtent - pos.viewportDimension) {
+    // Only follow output if user is essentially at the bottom (within 5px).
+    // When _onTerminalUpdate fires, layout hasn't run yet so maxScrollExtent is
+    // still the old value — for a user AT the bottom this is always true.
+    // A small threshold (vs the old viewportDimension) lets users freely scroll
+    // up by even a tiny amount without being snapped back on the next PTY update.
+    if (pos.pixels >= pos.maxScrollExtent - 5.0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _terminalScrollController.hasClients) {
           _terminalScrollController.jumpTo(
