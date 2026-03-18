@@ -182,7 +182,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Gradient icon
                             Container(
                               width: 72,
                               height: 72,
@@ -204,8 +203,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               child: const Icon(Icons.terminal, size: 34, color: Colors.white),
                             ),
                             const SizedBox(height: 22),
-
-                            // Title with blinking cursor
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -354,7 +351,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
 
-            // Theme toggle — top right
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
               right: 12,

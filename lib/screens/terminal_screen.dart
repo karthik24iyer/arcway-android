@@ -281,7 +281,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
             final titleText = session != null && session.name.isNotEmpty
                 ? session.name
                 : _sessionId?.substring(0, 8) ?? 'Terminal';
-            // Removed status badge — all open chats are active
             return Text(
               titleText,
               overflow: TextOverflow.ellipsis,

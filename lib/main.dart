@@ -91,7 +91,6 @@ class _ClaudeRemoteAppState extends State<ClaudeRemoteApp> {
   }
 
   ThemeData _buildDarkTheme() {
-    // Termius-inspired deep navy palette
     const bg = Color(0xFF060C18);
     const surface = Color(0xFF0D1526);
     const surfaceVar = Color(0xFF132040);
@@ -102,7 +101,6 @@ class _ClaudeRemoteAppState extends State<ClaudeRemoteApp> {
     const muted = Color(0xFF4A6080);
     const red = Color(0xFFF07178);
     const yellow = Color(0xFFFFCB6B);
-
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: bg,

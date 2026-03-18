@@ -47,7 +47,6 @@ class AuthService {
           _authCompleter!.complete(response);
         }
       } else if (type == 'welcome') {
-        // Backend sends welcome on connect, send auth after
       }
     }, onError: (e) {
       if (_authCompleter != null && !_authCompleter!.isCompleted) {
