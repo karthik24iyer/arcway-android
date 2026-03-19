@@ -262,6 +262,11 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
         centerTitle: false,
         title: const Text('Devices'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
           Consumer<SettingsProvider>(
             builder: (context, settings, _) => IconButton(
               icon: Icon(
@@ -269,11 +274,6 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
               ),
               onPressed: settings.toggleTheme,
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: _logout,
-            tooltip: 'Logout',
           ),
         ],
       ),
