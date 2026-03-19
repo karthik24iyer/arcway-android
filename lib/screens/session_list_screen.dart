@@ -227,96 +227,122 @@ class _SessionListScreenState extends State<SessionListScreen> {
               ),
             ),
 
-          if (sessionProvider.error != null)
+          if (!connectionProvider.isConnected)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
               color: Theme.of(context).colorScheme.tertiary,
-              child: Text(
-                sessionProvider.error!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onTertiary,
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.refresh_rounded,
+                      size: 13,
+                      color: Theme.of(context).colorScheme.onTertiary),
+                  const SizedBox(width: 5),
+                  Text(
+                    connectionProvider.retryCountdown > 0
+                        ? 'Retrying in ${connectionProvider.retryCountdown}s...'
+                        : 'Retrying...',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onTertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
 
           Expanded(
-            child: sessionProvider.isLoading && sessions.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: () async {
-                      final conn = context.read<ConnectionProvider>();
-                      if (!conn.isConnected) await conn.reconnect();
-                      sessionProvider.loadSessions();
-                    },
-                    child: sessions.isEmpty
-                        ? ListView(
-                            children: [
-                              SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.45,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 72,
-                                      height: 72,
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(18),
+            child: ColorFiltered(
+              colorFilter: connectionProvider.isConnected
+                  ? const ColorFilter.matrix([
+                      1, 0, 0, 0, 0,
+                      0, 1, 0, 0, 0,
+                      0, 0, 1, 0, 0,
+                      0, 0, 0, 1, 0,
+                    ])
+                  : const ColorFilter.matrix([
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0,      0,      0,      0.4, 0,
+                    ]),
+              child: sessionProvider.isLoading && sessions.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        final conn = context.read<ConnectionProvider>();
+                        if (!conn.isConnected) await conn.reconnect();
+                        sessionProvider.loadSessions();
+                      },
+                      child: sessions.isEmpty
+                          ? ListView(
+                              children: [
+                                SizedBox(
+                                  height: MediaQuery.of(context).size.height * 0.45,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 72,
+                                        height: 72,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                          borderRadius: BorderRadius.circular(18),
+                                        ),
+                                        child: Icon(
+                                          Icons.terminal_rounded,
+                                          size: 34,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
                                       ),
-                                      child: Icon(
-                                        Icons.terminal_rounded,
-                                        size: 34,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No active sessions',
+                                        style: TextStyle(
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No active sessions',
-                                      style: TextStyle(
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Tap + to start a new session',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant
+                                              .withValues(alpha: 0.7),
+                                          fontSize: 12,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Tap + to start a new session',
-                                      style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant
-                                            .withValues(alpha: 0.7),
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 80),
-                            itemCount: sessions.length,
-                            itemBuilder: (context, index) =>
-                                _buildSessionCard(sessions[index]),
-                          ),
-                  ),
+                              ],
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(14, 14, 14, 80),
+                              itemCount: sessions.length,
+                              itemBuilder: (context, index) =>
+                                  _buildSessionCard(sessions[index], connectionProvider.isConnected),
+                            ),
+                    ),
+            ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _createSession,
+        onPressed: connectionProvider.isConnected ? _createSession : null,
         child: const Icon(Icons.add_rounded),
       ),
     );
   }
 
-  Widget _buildSessionCard(SessionInfo session) {
+  Widget _buildSessionCard(SessionInfo session, bool isConnected) {
     final isActive = session.status == SessionStatus.active;
 
     final statusColor = switch (session.status) {
@@ -341,8 +367,8 @@ class _SessionListScreenState extends State<SessionListScreen> {
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () => _connectToSession(session.id),
-          onLongPress: () => _showTerminateSheet(session),
+          onTap: isConnected ? () => _connectToSession(session.id) : null,
+          onLongPress: isConnected ? () => _showTerminateSheet(session) : null,
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
@@ -406,8 +432,9 @@ class _SessionListScreenState extends State<SessionListScreen> {
                   IconButton(
                     icon: const Icon(Icons.stop_circle_outlined, size: 30),
                     color: const Color(0xFFFF7276),
-                    onPressed: () =>
-                        context.read<SessionProvider>().terminateSession(session.id),
+                    onPressed: isConnected
+                        ? () => context.read<SessionProvider>().terminateSession(session.id)
+                        : null,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 54, minHeight: 54),
                   ),

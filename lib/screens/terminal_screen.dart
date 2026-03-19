@@ -24,14 +24,14 @@ abstract final class _TerminalPalette {
   static const lightBorder = Color(0xFFDDDDDD);
   static const lightText = Color(0xFF212121);
   static const lightHint = Color(0xFF9E9E9E);
-  static const lightAccent = Color(0xFF7C4DFF);
+  static const lightAccent = Color(0xFF2563EB);
   // Dark chrome (Dracula-matched)
   static const darkBg = Color(0xFF21222C);
   static const darkSurface = Color(0xFF282A36);
   static const darkBorder = Color(0xFF44475A);
   static const darkText = Color(0xFFF8F8F2);
   static const darkHint = Color(0xFF6272A4);
-  static const darkAccent = Color(0xFFBD93F9);
+  static const darkAccent = Color(0xFF4797F8);
 }
 
 class _TerminalScreenState extends State<TerminalScreen> {
@@ -306,6 +306,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
                 );
               },
             ),
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) => IconButton(
+              icon: Icon(
+                settings.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              ),
+              onPressed: settings.toggleTheme,
+            ),
+          ),
         ],
       ),
       body: SafeArea(
