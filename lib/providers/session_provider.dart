@@ -128,6 +128,10 @@ class SessionProvider extends ChangeNotifier {
         final response = SessionConnectResponse.fromJson(msg);
         if (response.success) {
           _isSessionConnected = true;
+          if (_currentSessionId != null) {
+            final idx = _sessions.indexWhere((s) => s.id == _currentSessionId);
+            if (idx >= 0) _sessions[idx] = _sessions[idx].copyWith(status: SessionStatus.active, isActive: true);
+          }
           notifyListeners();
         } else {
           _currentSessionId = null;
