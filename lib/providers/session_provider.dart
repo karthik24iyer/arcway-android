@@ -15,6 +15,7 @@ class SessionProvider extends ChangeNotifier {
   String? _error;
   bool _lastSkipPermissions = false;
   bool _isSessionConnected = false;
+  List<String> _terminateAllQueue = [];
 
   SessionProvider(this._ws) {
     _subscription = _ws.messages.listen(_onMessage);
@@ -96,6 +97,12 @@ class SessionProvider extends ChangeNotifier {
     _ws.sendMessage(msg.toJson());
   }
 
+  void terminateAllSessions() {
+    if (_sessions.isEmpty) return;
+    _terminateAllQueue = _sessions.map((s) => s.id).toList();
+    terminateSession(_terminateAllQueue.removeAt(0));
+  }
+
   void _onMessage(Map<String, dynamic> msg) {
     final type = msg['type'] as String?;
 
@@ -142,7 +149,13 @@ class SessionProvider extends ChangeNotifier {
 
       case 'session_terminate_response':
         final response = SessionTerminateResponse.fromJson(msg);
-        if (response.success) {
+        if (_terminateAllQueue.isNotEmpty) {
+          if (!response.success) {
+            _error = response.message ?? 'Failed to terminate session';
+            notifyListeners();
+          }
+          terminateSession(_terminateAllQueue.removeAt(0));
+        } else if (response.success) {
           _error = null;
           loadSessions();
         } else {

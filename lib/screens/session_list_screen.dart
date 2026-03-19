@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/protocol.dart';
-import '../providers/auth_provider.dart';
 import '../providers/connection_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/settings_provider.dart';
@@ -95,14 +94,7 @@ class _SessionListScreenState extends State<SessionListScreen> {
     );
   }
 
-  void _logout() async {
-    await context.read<AuthProvider>().logout();
-    if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/login');
-    }
-  }
-
-  void _showLogoutConfirmDialog() {
+  void _showTerminateAllConfirmDialog() {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -114,7 +106,7 @@ class _SessionListScreenState extends State<SessionListScreen> {
               Row(
                 children: [
                   const Expanded(
-                    child: Text('Logout?',
+                    child: Text('Terminate All Sessions?',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                   IconButton(
@@ -135,9 +127,9 @@ class _SessionListScreenState extends State<SessionListScreen> {
                   ),
                   onPressed: () {
                     Navigator.pop(ctx);
-                    _logout();
+                    context.read<SessionProvider>().terminateAllSessions();
                   },
-                  child: const Text('Yes'),
+                  child: const Text('Terminate All'),
                 ),
               ),
             ],
@@ -192,8 +184,9 @@ class _SessionListScreenState extends State<SessionListScreen> {
             onPressed: _showSettingsSheet,
           ),
           IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: _showLogoutConfirmDialog,
+            icon: const Icon(Icons.cancel_outlined),
+            tooltip: 'Yes',
+            onPressed: _showTerminateAllConfirmDialog,
           ),
           Consumer<SettingsProvider>(
             builder: (context, settings, _) => IconButton(
