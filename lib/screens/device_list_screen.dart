@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../constants.dart';
 import '../providers/auth_provider.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/status_dot.dart';
 
 class DeviceListScreen extends StatefulWidget {
@@ -261,6 +262,14 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
         centerTitle: false,
         title: const Text('Devices'),
         actions: [
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) => IconButton(
+              icon: Icon(
+                settings.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              ),
+              onPressed: settings.toggleTheme,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             onPressed: _logout,
