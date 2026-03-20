@@ -28,20 +28,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> login(String username, String password, String serverUrl) async {
-    _setLoading();
-    try {
-      final response = await _authService.login(username, password, serverUrl);
-      _isLoading = false;
-      _error = response.success ? null : (response.message ?? response.error ?? 'Authentication failed');
-      notifyListeners();
-      return response.success;
-    } catch (e) {
-      _handleError(e);
-      return false;
-    }
-  }
-
   Future<bool> loginWithApple(String identityToken) async {
     _setLoading();
     try {

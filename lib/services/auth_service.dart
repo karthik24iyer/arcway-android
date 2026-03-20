@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,9 +15,7 @@ class AuthService {
   Completer<AuthResponse>? _authCompleter;
   StreamSubscription? _messageSubscription;
 
-  static const _keyToken = 'auth_token';
   static const _keySessionToken = 'session_token';
-  static const _keyUsername = 'auth_username';
 
   String? _sessionToken;
   String? _deviceId;
@@ -30,71 +27,6 @@ class AuthService {
   String? get token => _token;
   UserInfo? get userInfo => _userInfo;
   bool get isAuthenticated => _token != null;
-
-  Future<AuthResponse> login(
-    String username,
-    String password,
-    String serverUrl,
-  ) async {
-    await _ws.connect(serverUrl);
-
-    _authCompleter = Completer<AuthResponse>();
-    _messageSubscription = _ws.messages.listen((msg) {
-      final type = msg['type'] as String?;
-      if (type == 'auth_response') {
-        final response = AuthResponse.fromJson(msg);
-        if (!_authCompleter!.isCompleted) {
-          _authCompleter!.complete(response);
-        }
-      } else if (type == 'welcome') {
-      }
-    }, onError: (e) {
-      if (_authCompleter != null && !_authCompleter!.isCompleted) {
-        _authCompleter!.completeError(e);
-      }
-    });
-
-    final authMsg = AuthRequest(
-      username: username,
-      password: password,
-      clientInfo: ClientInfo(
-        platform: Platform.isIOS ? 'ios' : 'android',
-        version: '0.1.0',
-        deviceId: 'claude-remote-android',
-      ),
-      timestamp: DateTime.now().toIso8601String(),
-      id: 'auth-${DateTime.now().millisecondsSinceEpoch}',
-    );
-    _ws.sendMessage(authMsg.toJson());
-
-    try {
-      final response = await _authCompleter!.future.timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => AuthResponse(
-          success: false,
-          message: 'Authentication timed out',
-          timestamp: DateTime.now().toIso8601String(),
-          id: 'timeout',
-        ),
-      );
-
-      _clearAuthState();
-
-      if (response.success && response.token != null) {
-        _token = response.token;
-        _userInfo = response.userInfo;
-        await _saveCredentials(serverUrl);
-      } else {
-        _ws.disconnect();
-      }
-
-      return response;
-    } catch (e) {
-      _clearAuthState();
-      _ws.disconnect();
-      rethrow;
-    }
-  }
 
   Future<void> logout() async {
     _token = null;
@@ -110,15 +42,6 @@ class AuthService {
     if (sessionToken != null) {
       _sessionToken = sessionToken;
       _token = sessionToken;
-      return true;
-    }
-
-    final token = prefs.getString(_keyToken);
-    final username = prefs.getString(_keyUsername);
-
-    if (token != null && username != null) {
-      _token = token;
-      _userInfo = UserInfo(username: username, permissions: []);
       return true;
     }
     return false;
@@ -281,17 +204,9 @@ class AuthService {
     _authCompleter = null;
   }
 
-  Future<void> _saveCredentials(String serverUrl) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (_token != null) prefs.setString(_keyToken, _token!);
-    if (_userInfo != null) prefs.setString(_keyUsername, _userInfo!.username);
-  }
-
   Future<void> _clearCredentials() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.remove(_keyToken);
     prefs.remove(_keySessionToken);
-    prefs.remove(_keyUsername);
     _sessionToken = null;
   }
 }

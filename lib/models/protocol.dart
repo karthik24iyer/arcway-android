@@ -76,62 +76,6 @@ class WelcomeMessage extends BaseMessage {
   }
 }
 
-class AuthRequest extends BaseMessage {
-  final String username;
-  final String password;
-  final ClientInfo clientInfo;
-
-  AuthRequest({
-    required this.username,
-    required this.password,
-    required this.clientInfo,
-    required super.timestamp,
-    required super.id,
-  }) : super(type: 'auth_request');
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      'data': {
-        'username': username,
-        'password': password,
-        'client_info': clientInfo.toJson(),
-      },
-      'timestamp': timestamp,
-      'id': id,
-    };
-  }
-}
-
-class ClientInfo {
-  final String platform;
-  final String version;
-  final String deviceId;
-
-  ClientInfo({
-    required this.platform,
-    required this.version,
-    required this.deviceId,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'platform': platform,
-      'version': version,
-      'device_id': deviceId,
-    };
-  }
-
-  factory ClientInfo.fromJson(Map<String, dynamic> json) {
-    return ClientInfo(
-      platform: json['platform'] as String? ?? '',
-      version: json['version'] as String? ?? '',
-      deviceId: json['device_id'] as String? ?? '',
-    );
-  }
-}
-
 class AuthResponse extends BaseMessage {
   final bool success;
   final String? token;
