@@ -47,8 +47,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   int _termRows = 0;
   // True until session_connect_response arrives; gates the loading overlay.
   late bool _isConnecting;
-  late final ConnectionProvider _connectionProvider;
-  bool _wasDisconnected = false;
+  bool _didNavigateBack = false;
   static const _inputAreaHeight = 100.0;
   final _terminalScrollController = ScrollController();
 
@@ -115,9 +114,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _sessionId = sessionProvider.currentSessionId;
     _isConnecting = !sessionProvider.isSessionConnected;
 
-    _connectionProvider = context.read<ConnectionProvider>();
-    _connectionProvider.addListener(_onConnectionChange);
-
     _terminal.onResize = _onTerminalResize;
     _terminal.addListener(_onTerminalUpdate);
     _outputSub = _ws.messages.listen(_onServerMessage);
@@ -132,21 +128,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
           skipPermissions: context.read<SettingsProvider>().skipPermissions,
         );
       });
-    }
-  }
-
-  void _onConnectionChange() {
-    if (!_connectionProvider.isConnected) {
-      _wasDisconnected = true;
-    } else if (_wasDisconnected && _sessionId != null && mounted) {
-      _wasDisconnected = false;
-      setState(() => _isConnecting = true);
-      context.read<SessionProvider>().connectToSession(
-        _sessionId!,
-        cols: _termCols > 0 ? _termCols : null,
-        rows: _termRows > 0 ? _termRows : null,
-        skipPermissions: context.read<SettingsProvider>().skipPermissions,
-      );
     }
   }
 
@@ -251,7 +232,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   void dispose() {
-    _connectionProvider.removeListener(_onConnectionChange);
     _resizeDebounce?.cancel();
     _outputSub?.cancel();
     _terminal.removeListener(_onTerminalUpdate);
@@ -263,6 +243,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isConnected = context.watch<ConnectionProvider>().isConnected;
+    if (!isConnected && !_didNavigateBack) {
+      _didNavigateBack = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _disconnect();
+      });
+    }
+
     // viewInsetsOf only moves the input overlay, not the terminal canvas.
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -319,44 +307,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // isolated Consumer so the banner appearing/disappearing
-            // doesn't rebuild TerminalView.
-            Consumer<ConnectionProvider>(
-              builder: (context, connectionProvider, _) {
-                if (!connectionProvider.isConnected) {
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    color: Theme.of(context).colorScheme.error,
-                    child: Row(
-                      children: [
-                        Icon(Icons.cloud_off, color: Theme.of(context).colorScheme.onError, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Connection lost',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 13),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _disconnect,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            'BACK',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
             // Stack keeps TerminalView at a fixed size while the
             // input overlay floats above the keyboard. No canvas resize = no reflow.
             Expanded(
