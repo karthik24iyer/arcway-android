@@ -16,6 +16,7 @@ class SessionProvider extends ChangeNotifier {
   bool _lastSkipPermissions = false;
   bool _isSessionConnected = false;
   List<String> _terminateAllQueue = [];
+  String? _lastConnectedSessionId;
 
   SessionProvider(this._ws) {
     _subscription = _ws.messages.listen(_onMessage);
@@ -110,6 +111,14 @@ class SessionProvider extends ChangeNotifier {
       case 'session_list_response':
         final response = SessionListResponse.fromJson(msg);
         _sessions = response.sessions;
+        if (_lastConnectedSessionId != null) {
+          final idx = _sessions.indexWhere((s) => s.id == _lastConnectedSessionId);
+          if (idx < 0 || _sessions[idx].status == SessionStatus.active) {
+            _lastConnectedSessionId = null;
+          } else {
+            _sessions[idx] = _sessions[idx].copyWith(status: SessionStatus.active, isActive: true);
+          }
+        }
         _isLoading = false;
         _error = null;
         notifyListeners();
@@ -135,10 +144,7 @@ class SessionProvider extends ChangeNotifier {
         final response = SessionConnectResponse.fromJson(msg);
         if (response.success) {
           _isSessionConnected = true;
-          if (_currentSessionId != null) {
-            final idx = _sessions.indexWhere((s) => s.id == _currentSessionId);
-            if (idx >= 0) _sessions[idx] = _sessions[idx].copyWith(status: SessionStatus.active, isActive: true);
-          }
+          _lastConnectedSessionId = _currentSessionId;
           notifyListeners();
         } else {
           _currentSessionId = null;
@@ -170,6 +176,9 @@ class SessionProvider extends ChangeNotifier {
 
       case 'status_update':
         final update = StatusUpdate.fromJson(msg);
+        if (update.sessionId == _lastConnectedSessionId && update.status == SessionStatus.active) {
+          _lastConnectedSessionId = null;
+        }
         final idx = _sessions.indexWhere((s) => s.id == update.sessionId);
         if (idx >= 0) {
           _sessions[idx] = _sessions[idx].copyWith(
