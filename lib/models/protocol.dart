@@ -33,8 +33,6 @@ abstract class BaseMessage {
         return ErrorMessage.fromJson(json);
       case 'connection_error':
         return ConnectionError.fromJson(json);
-      case 'pong':
-        return PongMessage.fromJson(json);
       case 'status_update':
         return StatusUpdate.fromJson(json);
       default:
@@ -225,7 +223,6 @@ class SessionInfo {
   final String lastActivity;
   final bool isActive;
   final SessionStatus status;
-  final int? pid;
 
   SessionInfo({
     required this.id,
@@ -235,7 +232,6 @@ class SessionInfo {
     required this.lastActivity,
     required this.isActive,
     required this.status,
-    this.pid,
   });
 
   Map<String, dynamic> toJson() {
@@ -247,7 +243,6 @@ class SessionInfo {
       'lastActivity': lastActivity,
       'isActive': isActive,
       'status': status.name,
-      'pid': pid,
     };
   }
 
@@ -259,7 +254,6 @@ class SessionInfo {
     String? lastActivity,
     bool? isActive,
     SessionStatus? status,
-    int? pid,
   }) {
     return SessionInfo(
       id: id ?? this.id,
@@ -269,7 +263,6 @@ class SessionInfo {
       lastActivity: lastActivity ?? this.lastActivity,
       isActive: isActive ?? this.isActive,
       status: status ?? this.status,
-      pid: pid ?? this.pid,
     );
   }
 
@@ -286,7 +279,6 @@ class SessionInfo {
         (e) => e.name == json['status'],
         orElse: () => SessionStatus.idle,
       ),
-      pid: json['pid'] as int?,
     );
   }
 }
@@ -866,37 +858,6 @@ class ConnectionError extends BaseMessage {
       retryable: data['retryable'] as bool? ?? false,
       retryAfter: data['retry_after'] as int?,
       sessionId: data['session_id'] as String?,
-      timestamp: json['timestamp'] as String? ?? '',
-      id: json['id'] as String? ?? '',
-    );
-  }
-}
-
-class PongMessage extends BaseMessage {
-  final String pingId;
-
-  PongMessage({
-    required this.pingId,
-    required super.timestamp,
-    required super.id,
-  }) : super(type: 'pong');
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      'data': {
-        'ping_id': pingId,
-      },
-      'timestamp': timestamp,
-      'id': id,
-    };
-  }
-
-  factory PongMessage.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>? ?? {};
-    return PongMessage(
-      pingId: data['ping_id'] as String? ?? '',
       timestamp: json['timestamp'] as String? ?? '',
       id: json['id'] as String? ?? '',
     );

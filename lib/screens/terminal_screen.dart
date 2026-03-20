@@ -47,7 +47,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
   int _termRows = 0;
   // True until session_connect_response arrives; gates the loading overlay.
   late bool _isConnecting;
-  bool _didNavigateBack = false;
+  bool _isNetworkIssue = false;
+  late final ConnectionProvider _connectionProvider;
+  Timer? _disconnectTimer;
   static const _inputAreaHeight = 100.0;
   final _terminalScrollController = ScrollController();
 
@@ -114,6 +116,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _sessionId = sessionProvider.currentSessionId;
     _isConnecting = !sessionProvider.isSessionConnected;
 
+    _connectionProvider = context.read<ConnectionProvider>();
+    _connectionProvider.addListener(_onConnectionChange);
+
     _terminal.onResize = _onTerminalResize;
     _terminal.addListener(_onTerminalUpdate);
     _outputSub = _ws.messages.listen(_onServerMessage);
@@ -128,6 +133,27 @@ class _TerminalScreenState extends State<TerminalScreen> {
           skipPermissions: context.read<SettingsProvider>().skipPermissions,
         );
       });
+    }
+  }
+
+  void _onConnectionChange() {
+    if (!_connectionProvider.isConnected) {
+      _disconnectTimer?.cancel();
+      _disconnectTimer = Timer(const Duration(seconds: 10), () {
+        if (mounted) _disconnect();
+      });
+      if (mounted) setState(() { _isConnecting = true; _isNetworkIssue = true; });
+    } else if (_isNetworkIssue) {
+      _disconnectTimer?.cancel();
+      if (mounted) {
+        setState(() { _isConnecting = true; _isNetworkIssue = false; });
+        context.read<SessionProvider>().connectToSession(
+          _sessionId!,
+          cols: _termCols > 0 ? _termCols : null,
+          rows: _termRows > 0 ? _termRows : null,
+          skipPermissions: context.read<SettingsProvider>().skipPermissions,
+        );
+      }
     }
   }
 
@@ -232,6 +258,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   void dispose() {
+    _connectionProvider.removeListener(_onConnectionChange);
+    _disconnectTimer?.cancel();
     _resizeDebounce?.cancel();
     _outputSub?.cancel();
     _terminal.removeListener(_onTerminalUpdate);
@@ -243,14 +271,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isConnected = context.watch<ConnectionProvider>().isConnected;
-    if (!isConnected && !_didNavigateBack) {
-      _didNavigateBack = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _disconnect();
-      });
-    }
-
     // viewInsetsOf only moves the input overlay, not the terminal canvas.
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -350,7 +370,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                     ),
                   ),
                   if (_isConnecting)
-                    const Positioned.fill(child: _SessionLoadingOverlay()),
+                    Positioned.fill(child: _SessionLoadingOverlay(isNetworkIssue: _isNetworkIssue)),
                 ],
               ),
             ),
@@ -468,7 +488,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
 }
 
 class _SessionLoadingOverlay extends StatefulWidget {
-  const _SessionLoadingOverlay();
+  const _SessionLoadingOverlay({required this.isNetworkIssue});
+  final bool isNetworkIssue;
 
   @override
   State<_SessionLoadingOverlay> createState() => _SessionLoadingOverlayState();
@@ -551,15 +572,16 @@ class _SessionLoadingOverlayState extends State<_SessionLoadingOverlay>
               builder: (_, __) {
                 final dots = '.' * ((_controller.value * 4).floor() % 4);
                 final pad = '   '.substring(dots.length);
+                final label = widget.isNetworkIssue ? 'Network issue$dots$pad' : 'Starting session$dots$pad';
                 return Text(
-                  'Starting session$dots$pad',
+                  label,
                   style: TextStyle(color: primaryText, fontSize: 14, fontFamily: 'JetBrainsMono'),
                 );
               },
             ),
             const SizedBox(height: 8),
             Text(
-              'loading history…',
+              widget.isNetworkIssue ? 'retrying…' : 'loading history…',
               style: TextStyle(color: secondaryText, fontSize: 12, fontFamily: 'JetBrainsMono'),
             ),
           ],
