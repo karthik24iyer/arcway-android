@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/protocol.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -13,7 +12,6 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _authService.isAuthenticated;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  UserInfo? get userInfo => _authService.userInfo;
   String? get token => _authService.token;
 
   void _setLoading() {
@@ -68,10 +66,6 @@ class AuthProvider extends ChangeNotifier {
       _handleError(e);
       return [];
     }
-  }
-
-  Future<String> generateLinkToken() async {
-    return await _authService.generateLinkToken();
   }
 
   Future<void> connectToDevice(String deviceId) async {

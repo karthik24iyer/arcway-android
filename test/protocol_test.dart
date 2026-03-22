@@ -5,22 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:claude_remote_android/models/protocol.dart';
 
 void main() {
-  group('AuthRequest', () {
-    test('toJson includes type, username, password', () {
-      final req = AuthRequest(
-        username: 'testuser',
-        password: 'testpass',
-        clientInfo: ClientInfo(platform: 'android', version: '0.1.0', deviceId: 'test-device'),
-        timestamp: '2026-03-01T00:00:00Z',
-        id: 'auth-1',
-      );
-      final json = req.toJson();
-      expect(json['type'], equals('auth_request'));
-      expect(json['data']['username'], equals('testuser'));
-      expect(json['data']['password'], equals('testpass'));
-    });
-  });
-
   group('SessionListRequest', () {
     test('toJson has correct type', () {
       final req = SessionListRequest(
@@ -135,14 +119,13 @@ void main() {
         'data': {
           'sessions': [
             {
-              'id': 'sess-1',
+              'sessionId': 'sess-1',
               'name': 'my-project',
-              'working_directory': '/home/user',
+              'directory': '/home/user',
               'created': '2026-03-01T00:00:00Z',
-              'last_activity': '2026-03-01T01:00:00Z',
-              'is_active': true,
+              'lastActivity': '2026-03-01T01:00:00Z',
+              'isActive': true,
               'status': 'active',
-              'pid': 1234,
             }
           ]
         },

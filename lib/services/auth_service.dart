@@ -11,7 +11,6 @@ import 'websocket_service.dart';
 class AuthService {
   final WebSocketService _ws;
   String? _token;
-  UserInfo? _userInfo;
   Completer<AuthResponse>? _authCompleter;
   StreamSubscription? _messageSubscription;
 
@@ -25,12 +24,10 @@ class AuthService {
   AuthService(this._ws);
 
   String? get token => _token;
-  UserInfo? get userInfo => _userInfo;
   bool get isAuthenticated => _token != null;
 
   Future<void> logout() async {
     _token = null;
-    _userInfo = null;
     _ws.disconnect();
     await _clearCredentials();
   }
@@ -142,18 +139,6 @@ class AuthService {
     return list.cast<Map<String, dynamic>>();
   }
 
-  Future<String> generateLinkToken() async {
-    final response = await http.post(
-      Uri.parse('$kRelayHttpUrl/api/devices/link-token'),
-      headers: {'Authorization': 'Bearer $_effectiveToken'},
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Failed to generate link token: ${response.statusCode}');
-    }
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return body['token'] as String;
-  }
-
   Future<void> reconnect() async {
     if (_deviceId != null) await connectToDevice(_deviceId!);
   }
@@ -208,5 +193,6 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     prefs.remove(_keySessionToken);
     _sessionToken = null;
+    _token = null;
   }
 }

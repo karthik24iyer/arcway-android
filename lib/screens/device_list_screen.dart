@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../constants.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/status_dot.dart';
@@ -41,49 +39,6 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
       Navigator.of(context).pushReplacementNamed('/sessions');
     } catch (e) {
       _showError('Connection failed: $e');
-    }
-  }
-
-  Future<void> _generateLinkToken() async {
-    try {
-      final token = await context.read<AuthProvider>().generateLinkToken();
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Link Token'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Run this on your Mac (valid for 10 min):'),
-              const SizedBox(height: 12),
-              SelectableText(
-                'RELAY_URL=$kRelayWsUrl DEVICE_TOKEN=$token npm start',
-                style: const TextStyle(fontSize: 11),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: token));
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Token copied to clipboard')),
-                );
-              },
-              child: const Text('Copy Token'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      _showError('Failed: $e');
     }
   }
 
@@ -152,7 +107,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Tap + to link a Mac',
+                'Open Arcway on your Mac to register it',
                 style: TextStyle(
                   color:
                       Theme.of(context).dividerColor.withValues(alpha: 0.6),
@@ -276,11 +231,6 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _generateLinkToken,
-        tooltip: 'Add Mac',
-        child: const Icon(Icons.add_rounded),
       ),
       body: _buildBody(authProvider),
     );
